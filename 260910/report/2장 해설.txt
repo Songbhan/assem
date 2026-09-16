@@ -1,0 +1,103 @@
+1. 문제: 32비트 모드에서 ESP 외에 스택 변수를 가리키는 레지스터?  
+   답: EBP  
+   근거: 스택 프레임의 기준 주소를 잡는 데 사용됨.
+
+2. 문제: CPU 상태 플래그 4개 이상?  
+   답: CF, ZF, SF, OF  
+   근거: 각각 Carry, Zero, Sign, Overflow 상태를 나타냄.
+
+3. 문제: unsigned 연산 결과가 범위를 초과할 때 설정되는 플래그?  
+   답: CF  
+   근거: Carry Flag는 부호 없는 연산의 자리올림/범위 초과를 나타냄.
+
+4. 문제: signed 연산 결과가 범위를 초과할 때 설정되는 플래그?  
+   답: OF  
+   근거: Overflow Flag는 부호 있는 수의 표현 범위 초과를 나타냄.
+
+5. 문제: REX prefix 사용 시 R8D 사용 가능?  
+   답: True  
+   근거: REX를 사용하면 R8~R15 계열 확장 레지스터에 접근 가능함.
+
+6. 문제: 연산 결과가 음수일 때 설정되는 플래그?  
+   답: SF  
+   근거: Sign Flag는 결과의 최상위 비트가 1일 때 설정됨.
+
+7. 문제: 부동소수점 연산을 담당하는 CPU 부분?  
+   답: FPU  
+   근거: Floating-Point Unit이 실수 연산을 처리함.
+
+8. 문제: 32비트 프로세서의 부동소수점 데이터 레지스터 크기?  
+   답: 80 bits  
+   근거: x87 FPU의 ST 레지스터는 80비트 확장 정밀도를 사용함.
+
+9. 문제: x86-64는 x86과 하위 호환되는가?  
+   답: True  
+   근거: 기존 x86 명령어 대부분을 지원함.
+
+10. 문제: 현재 64비트 칩은 주소 지정에 64비트 전체를 사용하는가?  
+    답: False  
+    근거: 실제 구현에서는 주소 비트 일부만 사용함.
+
+11. 문제: Itanium 명령어 집합은 x86과 완전히 다른가?  
+    답: True  
+    근거: Itanium은 IA-64라는 별도 아키텍처를 사용함.
+
+12. 문제: SRAM은 DRAM보다 저렴한가?  
+    답: False  
+    근거: SRAM이 더 빠르지만 구조가 복잡해 보통 더 비쌈.
+
+13. 문제: REX prefix 사용 시 64비트 RDI 사용 가능?  
+    답: True  
+    근거: RDI는 64비트 범용 레지스터임.
+
+14. 문제: Native 64-bit mode에서 16-bit real mode는 가능하고 virtual-8086 mode는 불가능한가?  
+    답: False  
+    근거: 64비트 long mode에서는 real mode와 virtual-8086 mode를 직접 사용할 수 없음.
+
+15. 문제: x86-64는 x86보다 범용 레지스터가 4개 더 많은가?  
+    답: False  
+    근거: 8개에서 16개로 늘어나므로 8개가 증가함.
+
+16. 문제: 64비트 Windows는 virtual-8086 mode를 지원하지 않는가?  
+    답: True  
+    근거: 64비트 long mode에서는 virtual-8086 mode가 지원되지 않음.
+
+17. 문제: DRAM은 자외선으로만 지울 수 있는가?  
+    답: False  
+    근거: 자외선으로 지우는 것은 EPROM의 특징임.
+
+18. 문제: 64비트 모드에서 최대 8개의 부동소수점 레지스터 사용 가능?  
+    답: True  
+    근거: x87 FPU에는 ST(0)~ST(7), 총 8개가 있음.
+
+19. 문제: Bus는 메인보드 양끝에 연결된 플라스틱 케이블인가?  
+    답: False  
+    근거: Bus는 장치 간 데이터를 전달하는 전기적 경로를 의미함.
+
+20. 문제: CMOS RAM은 전원이나 refresh 없이 값을 유지하는 SRAM과 같은가?  
+    답: False  
+    근거: CMOS RAM도 값을 유지하려면 전원이 필요함.
+
+21. 문제: PCI 커넥터는 그래픽 카드와 사운드 카드에 사용되는가?  
+    답: True  
+    근거: PCI는 다양한 확장 카드를 연결하는 표준 인터페이스임.
+
+22. 문제: 8259A는 하드웨어 외부 인터럽트를 처리하는 컨트롤러인가?  
+    답: True  
+    근거: 8259A는 Programmable Interrupt Controller임.
+
+23. 문제: PCI = Programmable Component Interface인가?  
+    답: False  
+    근거: PCI는 Peripheral Component Interconnect의 약자임.
+
+24. 문제: VRAM = Virtual Random Access Memory인가?  
+    답: False  
+    근거: VRAM은 Video Random Access Memory의 약자임.
+
+25. 문제: 어셈블리 프로그램은 어느 레벨에서 I/O를 조작할 수 있는가?  
+    답: 모든 레벨 (All levels)  
+    근거: 라이브러리, OS, BIOS, 하드웨어 수준에서 I/O 접근이 가능함.
+
+26. 문제: 게임 프로그램이 사운드를 하드웨어 포트로 직접 보내는 이유?  
+    답: 속도 향상 및 지연시간 감소  
+    근거: 중간 소프트웨어 계층을 줄여 더 빠르게 하드웨어를 제어할 수 있기 때문임.
