@@ -1,0 +1,264 @@
+Protected Mode(보호 모드) = 현대적인 운영체제 환경에서 사용하는 중요한 x86 동작 모드
+
+Protected Mode(보호 모드) 환경 안에서
+예전 방식인 Real-Address Mode(실제 주소 모드) 프로그램도 실행할 수 있도록 만든 방식이야.
+Protected environment(보호된 환경)
+안에
+Real-Address program(실제 주소 방식 프로그램)이 들어가는 느낌
+
+2.2 32-Bit x86 Processors (32비트 x86 프로세서)
+│
+├─ 1. Processor Modes (프로세서 모드)
+│   │
+│   ├─ Protected Mode (보호 모드)
+│   │   └─ 메모리 보호, 현대 운영체제에 적합
+│   │
+│   ├─ Virtual-8086 Mode (가상 8086 모드)
+│   │   └─ 보호된 환경에서 Real-Address 프로그램 실행
+│   │
+│   ├─ Real-Address Mode (실제 주소 모드)
+│   │   └─ 메모리/하드웨어에 직접 접근
+│   │
+│   └─ System Management Mode (시스템 관리 모드)
+│       └─ 전원 관리, 시스템 보안
+│
+├─ 2. Memory Addressing (메모리 주소 지정)
+│   │
+│   ├─ Real-Address Mode → 1 MB
+│   ├─ Virtual-8086 Mode → 프로그램당 1 MB
+│   ├─ Protected Mode → 4 GB
+│   └─ Extended Physical Addressing
+│       (확장 물리 주소 지정) → 최대 64 GB
+│
+├─ ★ 3. Registers (레지스터)
+│   │
+│   ├─ General-Purpose Registers (범용 레지스터)
+│   │   │
+│   │   ├─ EAX → 곱셈/나눗셈 관련
+│   │   ├─ EBX → 범용
+│   │   ├─ ECX → Loop Counter (반복 횟수)
+│   │   ├─ EDX → 범용
+│   │   ├─ ESI → 메모리 전송 관련
+│   │   ├─ EDI → 메모리 전송 관련
+│   │   ├─ ESP → Stack (스택) 관련
+│   │   └─ EBP → 함수 매개변수/지역변수 참조
+│   │
+│   │   ★ 레지스터를 작은 크기로 사용 가능
+│   │
+│   │      EAX (32bit)
+│   │       └─ AX (16bit)
+│   │           ├─ AH (상위 8bit)
+│   │           └─ AL (하위 8bit)
+│   │
+│   │      EBX → BX → BH / BL
+│   │      ECX → CX → CH / CL
+│   │      EDX → DX → DH / DL
+│   │
+│   ├─ Segment Registers (세그먼트 레지스터)
+│   │   │
+│   │   ├─ CS → Code (코드)
+│   │   ├─ DS → Data (데이터)
+│   │   ├─ SS → Stack (스택)
+│   │   ├─ ES → 추가 데이터/문자열 연산
+│   │   ├─ FS → 시스템 관련 데이터
+│   │   └─ GS → 시스템 관련 데이터
+│   │
+│   ├─ ★ EIP
+│   │   └─ Instruction Pointer (명령어 포인터)
+│   │       → 다음에 실행할 명령어의 주소 저장
+│   │
+│   └─ ★ EFLAGS
+│       └─ CPU 연산 결과/상태 저장
+│           │
+│           ├─ ZF → Zero Flag (제로 플래그)
+│           │        결과가 0인지
+│           │
+│           ├─ SF → Sign Flag (부호 플래그)
+│           │        결과가 음수인지
+│           │
+│           ├─ CF → Carry Flag (자리올림 플래그)
+│           │        자리올림 관련
+│           │
+│           ├─ OF → Overflow Flag (오버플로 플래그)
+│           │        연산 범위 초과 관련
+│           │
+│           ├─ AF/AC → Auxiliary Carry
+│           │          (보조 자리올림)
+│           │
+│           └─ PF → Parity Flag (패리티 플래그)
+│
+├─ 4. MMX Technology (MMX 기술)
+│   │
+│   ├─ 64-bit Register × 8
+│   ├─ SIMD Instructions (SIMD 명령어)
+│   │   └─ 여러 데이터를 동시에 처리
+│   └─ Multimedia Processing
+│       (멀티미디어 처리)
+│       └─ 영상/음성/그래픽 처리
+│
+└─ 5. FPU
+    └─ Floating-Point Unit (부동소수점 연산 장치)
+        │
+        ├─ 부동소수점 계산 담당
+        │
+        ├─ 과거 → 별도 Coprocessor (보조 프로세서)
+        ├─ 이후 → CPU 내부에 통합
+        │
+        └─ ST(0) ~ ST(7)
+            → 8개의 80-bit Data Register
+              (80비트 데이터 레지스터)
+
+
+
+
+
+2.3 64-Bit x86-64 Processors
+(64비트 x86-64 프로세서)
+│
+├─ 1. 특징
+│   │
+│   ├─ 64-bit Registers
+│   │   (64비트 레지스터)
+│   │
+│   ├─ 64-bit Addresses
+│   │   (64비트 주소)
+│   │
+│   ├─ Additional Registers
+│   │   (추가 레지스터)
+│   │
+│   └─ Backward Compatibility
+│       (하위 호환성)
+│
+├─ 2. Processor Modes
+│   (프로세서 모드)
+│   │
+│   ├─ Compatibility Mode
+│   │   (호환 모드)
+│   │   └─ 기존 16/32비트 프로그램 실행
+│   │
+│   └─ 64-Bit Mode
+│       (64비트 모드)
+│       └─ 64비트 기능 사용
+│
+├─ 3. Register Expansion
+│   (레지스터 확장)
+│   │
+│   ├─ EAX → RAX
+│   ├─ EBX → RBX
+│   ├─ ECX → RCX
+│   └─ EDX → RDX
+│
+├─ 4. Additional Registers
+│   (추가 레지스터)
+│   │
+│   └─ R8 ~ R15
+│
+├─ 5. 중요 변화
+│   │
+│   ├─ EIP → RIP
+│   ├─ EFLAGS → RFLAGS
+│   └─ General-Purpose Registers
+│       (범용 레지스터)
+│       8개 → 16개
+│
+└─ 6. REX Prefix
+    (REX 접두어)
+    └─ 64비트 operand 및
+       추가 레지스터 사용과 관련
+
+
+
+2.4 Components of a Typical x86 Computer
+(일반적인 x86 컴퓨터의 구성요소)
+│
+├─ 1. Motherboard (메인보드)
+│   │
+│   ├─ CPU Socket (CPU 소켓)
+│   ├─ Main Memory (주 메모리)
+│   ├─ Memory Slots (메모리 슬롯)
+│   ├─ Chipset (칩셋)
+│   ├─ I/O Connectors (입출력 연결부)
+│   ├─ Power Supply Connectors (전원 연결부)
+│   └─ Expansion Slots (확장 슬롯)
+│
+├─ 2. Bus (버스)
+│   │
+│   ├─ PCI Bus (PCI 버스)
+│   └─ PCI Express Bus (PCI 익스프레스 버스)
+│       └─ High-Speed Serial Connection
+│          (고속 직렬 연결)
+│
+├─ 3. Optional Components
+│   (선택적 구성요소)
+│   │
+│   ├─ Network Adapter (네트워크 어댑터)
+│   ├─ Sound Processor (사운드 프로세서)
+│   └─ Device Connectors (장치 연결부)
+│
+├─ 4. Processor Supporting Components
+│   (프로세서 지원 구성요소)
+│   │
+│   ├─ Parallel Port (병렬 포트)
+│   ├─ FPU (부동소수점 연산 장치)
+│   ├─ Interval Timer (간격 타이머)
+│   ├─ Clock Generator (클록 생성기)
+│   └─ Interrupt Controller (인터럽트 컨트롤러)
+│
+├─ 5. Chipset (칩셋)
+│   └─ CPU, Memory, USB, Network,
+│      Audio, Storage 등을 연결
+│
+└─ 6. Memory Types (메모리 종류)
+    │
+    ├─ ROM → 비휘발성
+    ├─ EPROM → 자외선으로 삭제 가능
+    ├─ DRAM → Main Memory, Refresh 필요
+    ├─ SRAM → Cache, Refresh 불필요
+    ├─ VRAM → Video Data
+    └─ CMOS RAM → System Setup, Battery
+
+2.5 Input-Output System
+(입출력 시스템)
+│
+├─ 1. I/O
+│   │
+│   ├─ Input (입력)
+│   └─ Output (출력)
+│
+├─ 2. Device Driver
+│   (장치 드라이버)
+│   │
+│   └─ OS ↔ Driver ↔ Hardware
+│       운영체제와 장치 사이의 통신
+│
+├─ 3. I/O 처리 흐름
+│   │
+│   ├─ Application Call
+│   │   (응용 프로그램 호출)
+│   │
+│   ├─ Library Function
+│   │   (라이브러리 함수)
+│   │
+│   ├─ OS Function
+│   │   (운영체제 함수)
+│   │
+│   ├─ BIOS Function
+│   │   (BIOS 기능)
+│   │
+│   └─ Hardware
+│       (하드웨어)
+│
+└─ 4. Assembly Language I/O Levels
+    (어셈블리 언어 입출력 수준)
+    │
+    ├─ Level 3 → Library
+    │             (라이브러리)
+    │
+    ├─ Level 2 → OS
+    │             (운영체제)
+    │
+    ├─ Level 1 → BIOS
+    │             (바이오스)
+    │
+    └─ Level 0 → Hardware
+                  (하드웨어)
