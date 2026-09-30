@@ -1,0 +1,279 @@
+﻿Assembly Language Fundamentals
+Chapter 3 - Programming Exercises (3.10)
+Solutions 1~6
+
+============================================================
+1. Integer Expression Calculation
+============================================================
+
+문제:
+A = (A + B) - (C + D)를 계산하는 프로그램을 작성한다.
+A, B, C, D는 각각 EAX, EBX, ECX, EDX 레지스터에 저장한다.
+
+코드:
+
+INCLUDE Irvine32.inc
+
+.code
+main PROC
+
+    mov eax, 10        ; A
+    mov ebx, 20        ; B
+    mov ecx, 5         ; C
+    mov edx, 3         ; D
+
+    add eax, ebx       ; EAX = A + B
+    add ecx, edx       ; ECX = C + D
+    sub eax, ecx       ; EAX = (A + B) - (C + D)
+
+    call DumpRegs
+
+    exit
+main ENDP
+END main
+
+결과:
+EAX = 22
+
+
+============================================================
+2. Symbolic Integer Constants
+============================================================
+
+문제:
+일주일 7일을 나타내는 기호 정수 상수를 정의하고,
+해당 기호를 초기값으로 사용하는 배열을 만든다.
+
+코드:
+
+INCLUDE Irvine32.inc
+
+SUNDAY    = 1
+MONDAY    = 2
+TUESDAY   = 3
+WEDNESDAY = 4
+THURSDAY  = 5
+FRIDAY    = 6
+SATURDAY  = 7
+
+.data
+week DWORD SUNDAY, MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY
+
+.code
+main PROC
+
+    exit
+
+main ENDP
+END main
+
+
+============================================================
+3. Data Definitions
+============================================================
+
+문제:
+Table 3-2에 나오는 각 데이터형을 하나씩 정의하고,
+각 자료형에 맞는 값으로 초기화한다.
+
+코드:
+
+INCLUDE Irvine32.inc
+
+.data
+
+byteVal    BYTE    25
+sbyteVal   SBYTE   -25
+
+wordVal    WORD    1000
+swordVal   SWORD   -1000
+
+dwordVal   DWORD   100000
+sdwordVal  SDWORD  -100000
+
+fwordVal   FWORD   123456789ABCh
+qwordVal   QWORD   123456789ABCDEF0h
+tbyteVal   TBYTE   123456789ABCDEF01234h
+
+real4Val   REAL4   1.5
+real8Val   REAL8   2.5
+real10Val  REAL10  3.5
+
+.code
+main PROC
+
+    exit
+
+main ENDP
+END main
+
+
+============================================================
+4. Symbolic Text Constants
+============================================================
+
+문제:
+여러 문자열 리터럴에 대한 기호 이름을 정의하고,
+각 기호 이름을 변수 정의에 사용한다.
+
+코드:
+
+INCLUDE Irvine32.inc
+
+msg1 TEXTEQU <"Hello",0>
+msg2 TEXTEQU <"Assembly Language",0>
+msg3 TEXTEQU <"Good Morning",0>
+
+.data
+
+str1 BYTE msg1
+str2 BYTE msg2
+str3 BYTE msg3
+
+.code
+main PROC
+
+    exit
+
+main ENDP
+END main
+
+
+============================================================
+5. Listing File for AddTwoSum
+============================================================
+
+문제:
+AddTwoSum 프로그램의 Listing File을 생성하고,
+각 명령어에서 생성된 기계어 바이트를 설명한다.
+
+강의자료에서 확인 가능한 AddTwo 예시:
+
+    mov eax, 5
+    add eax, 6
+
+Listing 예시:
+
+    B8 00000005      mov eax,5
+    83 C0 06         add eax,6
+
+실제 메모리 바이트 기준:
+
+    mov eax,5
+    -> B8 05 00 00 00
+
+    add eax,6
+    -> 83 C0 06
+
+설명:
+
+    B8
+    -> EAX 레지스터에 즉시값을 이동하는 MOV 명령 코드
+
+    05 00 00 00
+    -> 정수 5의 Little-Endian 표현
+
+    83
+    -> 즉시값을 사용하는 산술 연산 계열 Opcode
+
+    C0
+    -> 연산 대상이 EAX임을 나타냄
+
+    06
+    -> 더할 값 6
+
+주의:
+현재 제공된 자료에는 AddTwoSum 전체 소스와 전체 Listing 결과가 없으므로,
+위 내용은 강의자료에서 확인 가능한 AddTwo 예시를 기준으로 정리한 것이다.
+
+
+============================================================
+6. AddVariables Program
+============================================================
+
+문제:
+AddVariables 프로그램을 64비트 변수를 사용하도록 수정하고,
+발생하는 문법 오류와 해결 방법을 설명한다.
+
+기존 32비트 형태:
+
+INCLUDE Irvine32.inc
+
+.data
+
+val1     DWORD 10000h
+val2     DWORD 40000h
+val3     DWORD 20000h
+finalVal DWORD ?
+
+.code
+
+main PROC
+
+    mov eax, val1
+    add eax, val2
+    sub eax, val3
+    mov finalVal, eax
+
+    call DumpRegs
+    exit
+
+main ENDP
+END main
+
+
+64비트 형태 예시:
+
+INCLUDE Irvine64.inc
+
+.data
+
+val1     QWORD 10000h
+val2     QWORD 40000h
+val3     QWORD 20000h
+finalVal QWORD ?
+
+.code
+
+main PROC
+
+    mov rax, val1
+    add rax, val2
+    sub rax, val3
+    mov finalVal, rax
+
+    call DumpRegs
+
+    exit
+
+main ENDP
+END
+
+
+변경 사항:
+
+    DWORD -> QWORD
+    EAX   -> RAX
+    Irvine32.inc -> Irvine64.inc
+
+결과:
+
+    10000h + 40000h - 20000h = 30000h
+
+    finalVal = 30000h
+
+주의:
+32비트 프로젝트에서는 RAX를 사용할 수 없다.
+64비트 예시는 64비트 환경으로 프로젝트를 구성한 경우를 전제로 한다.
+
+
+============================================================
+Summary
+============================================================
+
+Exercise 1 : 레지스터를 이용한 정수식 계산
+Exercise 2 : 기호 정수 상수와 배열
+Exercise 3 : 기본 데이터형 선언
+Exercise 4 : TEXTEQU를 이용한 문자열 기호 상수
+Exercise 5 : Listing File과 기계어 바이트
+Exercise 6 : 32비트 변수 -> 64비트 변수 변환

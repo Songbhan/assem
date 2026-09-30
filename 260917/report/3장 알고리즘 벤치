@@ -1,0 +1,53 @@
+﻿1. 정수 25를 10진수, 2진수, 8진수, 16진수 형식으로 나타내는 기호 상수 4개를 정의하시오.
+답:
+DECIMAL = 25
+BINARY  = 11001b
+OCTAL   = 31q
+HEXA    = 19h
+
+2. 하나의 프로그램에 여러 개의 코드 세그먼트와 데이터 세그먼트를 둘 수 있는지 확인하시오.
+답 : 가능하다. .data와 .code를 여러 번 전환하여 사용할 수 있다.
+
+3. 메모리에 Big-endian 형식으로 저장되는 doubleword 데이터 정의를 작성하시오.
+답 : value BYTE 12h, 34h, 56h, 78h
+
+4. DWORD형 변수를 선언하고 음수 값을 대입할 수 있는지 확인하시오. 이것은 어셈블러의 형 검사에 대해 무엇을 의미하는가?
+답 : value DWORD -1
+가능하며, 어셈블러의 형 검사가 고급 언어처럼 엄격하지 않음을 보여준다.
+
+5. EAX 레지스터에 5를 더하고, EDX 레지스터에 5를 더하는 두 명령을 작성하시오.
+답 : add eax, 5
+     add edx, 5
+
+6. 456789ABh의 바이트 값을 Little-endian 순서로 나열하시오.
+답 : ABh, 89h, 67h, 45h
+
+7. 초기화되지 않은 unsigned doubleword 값 120개짜리 배열을 선언하시오.
+답 : array DWORD 120 DUP(?)
+
+8. byte 배열을 선언하고 알파벳의 처음 5글자로 초기화하시오.
+답 : letters BYTE "ABCDE"
+
+9. 32비트 signed integer 변수를 선언하고 가능한 가장 작은 음수 10진수 값으로 초기화하시오.
+답 : value SDWORD -2147483648
+
+10. wArray라는 이름의 unsigned 16비트 정수 변수를 선언하고 초기값 3개를 사용하시오.
+답 : wArray WORD 10, 20, 30
+
+11. 좋아하는 색상의 이름을 포함하는 문자열 변수를 선언하고 null-terminated string으로 초기화하시오.
+답 : color BYTE "Blue", 0
+
+12. dArray라는 이름의 초기화되지 않은 signed doubleword 50개짜리 배열을 선언하시오.
+답: dArray SDWORD 50 DUP(?)
+
+13. "TEST"라는 단어를 500번 반복하는 문자열 변수를 선언하시오.
+답: testStr BYTE 500 DUP("TEST")
+
+14. bArray라는 이름의 unsigned byte 20개짜리 배열을 선언하고 모든 원소를 0으로 초기화하시오.
+답: bArray BYTE 20 DUP(0)
+
+15. 다음 doubleword 변수의 각 바이트가 메모리에 저장되는 순서를 낮은 주소에서 높은 주소 순으로 쓰시오.
+
+val1 DWORD 87654321h
+
+답 : 21h, 43h, 65h, 87h
