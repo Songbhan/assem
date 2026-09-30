@@ -1,8 +1,4 @@
-﻿Assembly Language Fundamentals
-Chapter 3 - Programming Exercises (3.10)
-Solutions 1~6
-
-============================================================
+﻿============================================================
 1. Integer Expression Calculation
 ============================================================
 
