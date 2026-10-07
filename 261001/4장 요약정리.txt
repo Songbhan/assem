@@ -1,0 +1,676 @@
+﻿4장 Data Transfers, Addressing, and Arithmetic 요약정리
+
+============================================================
+4.1 Data Transfer Instructions
+============================================================
+
+[1] Operand Types
+
+어셈블리 명령어 기본 형태
+[label:] mnemonic [operands] [; comment]
+
+피연산자 종류
+- Immediate : 숫자 상수
+- Register  : CPU 레지스터
+- Memory    : 메모리 위치
+
+
+[2] MOV Instruction
+
+형식
+mov destination, source
+
+source 값을 destination으로 복사함.
+
+중요
+- source와 destination의 크기는 같아야 함.
+- 메모리 -> 메모리 직접 이동은 안 됨.
+- 메모리끼리 옮길 때는 레지스터를 중간에 사용.
+
+예)
+mov ax,var1
+mov var2,ax
+
+이건 가능.
+
+mov var2,var1
+
+이건 메모리 -> 메모리라서 안 됨.
+
+
+[3] 레지스터 일부만 바뀌는 경우
+
+EAX = 32비트
+AX  = EAX의 하위 16비트
+AH  = AX의 상위 8비트
+AL  = AX의 하위 8비트
+
+예)
+mov eax,12345678h
+mov ax,0
+
+결과
+EAX = 12340000h
+
+즉 AX만 바꾸면 EAX의 상위 16비트는 그대로 남음.
+
+
+[4] MOVZX / MOVSX
+
+MOVZX
+작은 값을 큰 레지스터로 옮길 때 상위 비트를 0으로 채움.
+
+예)
+mov bx,0A69Bh
+movzx eax,bx
+
+EAX = 0000A69Bh
+
+
+MOVSX
+작은 signed 값을 큰 레지스터로 옮길 때 부호를 유지해서 확장.
+
+예)
+mov bx,0A69Bh
+movsx eax,bx
+
+BX의 최상위 비트가 1이므로 음수로 취급되어
+EAX = FFFFA69Bh
+
+
+정리
+- unsigned 확장 -> MOVZX
+- signed 확장   -> MOVSX
+
+
+[5] LAHF / SAHF
+
+LAHF
+EFLAGS의 하위 바이트를 AH에 저장.
+
+SAHF
+AH의 값을 상태 플래그의 하위 바이트에 저장.
+
+
+[6] XCHG
+
+두 피연산자의 값을 서로 교환.
+
+예)
+xchg ax,bx
+
+AX와 BX의 값이 서로 바뀜.
+
+메모리끼리 직접 교환하려면 레지스터를 하나 끼워서 처리.
+
+예)
+mov ax,val1
+xchg ax,val2
+mov val1,ax
+
+
+[7] Direct-Offset Addressing
+
+배열의 시작 주소에서 일정 바이트만큼 떨어진 값을 읽는 방식.
+
+BYTE 배열
+arrayB BYTE 10h,20h,30h
+
+arrayB+0 = 10h
+arrayB+1 = 20h
+arrayB+2 = 30h
+
+
+WORD 배열
+arrayW WORD 100h,200h,300h
+
+arrayW+0 = 100h
+arrayW+2 = 200h
+arrayW+4 = 300h
+
+
+DWORD 배열
+arrayD DWORD 10000h,20000h
+
+arrayD+0 = 10000h
+arrayD+4 = 20000h
+
+
+핵심
+array+1이 무조건 다음 원소라는 뜻은 아님.
+주소를 1바이트 이동하는 뜻임.
+
+
+============================================================
+4.2 Addition and Subtraction
+============================================================
+
+[1] INC / DEC
+
+INC
+값을 1 증가.
+
+DEC
+값을 1 감소.
+
+예)
+inc ax
+dec ax
+
+중요
+INC와 DEC는 Carry Flag(CF)에 영향을 주지 않음.
+
+
+[2] ADD
+
+형식
+add destination, source
+
+destination = destination + source
+
+source 값은 그대로이고 결과는 destination에 저장.
+
+
+[3] SUB
+
+형식
+sub destination, source
+
+destination = destination - source
+
+
+[4] NEG
+
+값의 부호를 반대로 바꿈.
+2의 보수를 취하는 것과 같음.
+
+예)
+mov eax,26
+neg eax
+
+EAX = -26
+
+
+[5] 산술식을 어셈블리로 바꾸는 방법
+
+예)
+Rval = -Xval + (Yval - Zval)
+
+가능한 형태
+
+mov eax,Xval
+neg eax
+
+mov ebx,Yval
+sub ebx,Zval
+
+add eax,ebx
+mov Rval,eax
+
+
+[6] Status Flags
+
+ZF (Zero Flag)
+연산 결과가 0이면 1.
+
+예)
+mov ecx,1
+sub ecx,1
+
+ECX=0
+ZF=1
+
+
+CF (Carry Flag)
+unsigned 연산에서 carry 또는 borrow가 생겼는지 확인.
+
+덧셈 예)
+mov al,0FFh
+add al,1
+
+AL=00h
+CF=1
+
+뺄셈 예)
+mov al,1
+sub al,2
+
+AL=FFh
+CF=1
+
+
+SF (Sign Flag)
+연산 결과가 음수이면 1.
+결과의 최상위 비트가 1이면 SF=1.
+
+
+OF (Overflow Flag)
+signed 연산에서 표현 가능한 범위를 벗어났을 때 1.
+
+대표적인 경우
+- 양수 + 양수 했는데 음수 결과
+- 음수 + 음수 했는데 양수 결과
+
+예)
+mov al,+127
+add al,1
+
+OF=1
+
+
+PF (Parity Flag)
+결과의 가장 낮은 8비트에서
+1의 개수가 짝수이면 PF=1.
+
+
+AF (Auxiliary Carry)
+bit 3에서 carry 또는 borrow가 발생하면 설정.
+
+
+[7] CF와 OF 차이
+
+CF
+- unsigned 연산 기준
+
+OF
+- signed 연산 기준
+
+이 둘을 구분하는 게 중요함.
+
+
+[8] NEG와 Overflow
+
+8비트 signed 범위
+-128 ~ +127
+
+예)
+mov al,-128
+neg al
+
++128은 8비트 signed로 표현할 수 없어서
+OF=1.
+
+
+============================================================
+4.3 Data-Related Operators and Directives
+============================================================
+
+[1] OFFSET
+
+변수의 주소를 가져옴.
+
+예)
+mov esi,OFFSET arrayB
+
+ESI에 arrayB 시작 주소가 들어감.
+
+
+[2] ALIGN
+
+다음 변수가 특정 주소 경계에 맞게 배치되도록 함.
+
+예)
+ALIGN 2
+
+다음 변수의 시작 주소를 2의 배수 주소에 맞춤.
+
+
+[3] PTR
+
+원래 선언된 자료형의 크기를 다른 크기로 해석하고 싶을 때 사용.
+
+예)
+myDouble DWORD 12345678h
+
+mov ax,WORD PTR myDouble
+
+AX = 5678h
+
+mov bl,BYTE PTR myDouble
+
+BL = 78h
+
+
+자주 쓰는 형태
+BYTE PTR
+WORD PTR
+DWORD PTR
+
+
+[4] TYPE
+
+배열 원소 하나의 크기를 바이트 단위로 반환.
+
+BYTE  -> 1
+WORD  -> 2
+DWORD -> 4
+QWORD -> 8
+
+
+[5] LENGTHOF
+
+배열의 원소 개수를 반환.
+
+예)
+array WORD 10h,20h,30h
+
+LENGTHOF array = 3
+
+
+[6] SIZEOF
+
+배열 전체 크기를 바이트 단위로 반환.
+
+SIZEOF = TYPE × LENGTHOF
+
+예)
+array WORD 10h,20h,30h
+
+TYPE = 2
+LENGTHOF = 3
+SIZEOF = 6
+
+
+[7] LABEL
+
+새로운 저장공간을 만들지 않고
+같은 메모리 위치를 다른 자료형으로 접근할 수 있게 이름을 하나 더 붙임.
+
+예)
+val16 LABEL WORD
+val32 DWORD 12345678h
+
+같은 메모리 위치를
+WORD 또는 DWORD처럼 다르게 볼 수 있음.
+
+
+[8] TYPE / LENGTHOF / SIZEOF 한 번에 정리
+
+TYPE
+= 원소 하나 크기
+
+LENGTHOF
+= 원소 개수
+
+SIZEOF
+= 전체 바이트 크기
+
+
+============================================================
+4.4 Indirect Addressing
+============================================================
+
+[1] Indirect Operand
+
+레지스터에 주소를 넣고
+그 주소가 가리키는 메모리 값을 읽는 방식.
+
+예)
+mov esi,OFFSET byteVal
+mov al,[esi]
+
+[esi]
+= ESI가 가리키는 메모리 내용.
+
+
+[2] 크기가 애매할 때
+
+메모리 위치만 보고는 크기를 알기 어려운 경우 PTR을 사용.
+
+예)
+inc BYTE PTR [esi]
+
+
+[3] 배열에서 간접 주소 지정
+
+BYTE 배열
+다음 원소로 갈 때 +1
+
+WORD 배열
+다음 원소로 갈 때 +2
+
+DWORD 배열
+다음 원소로 갈 때 +4
+
+
+예)
+arrayW WORD 1000h,2000h,3000h
+
+mov esi,OFFSET arrayW
+mov ax,[esi]
+
+add esi,2
+mov ax,[esi]
+
+
+[4] Indexed Operand
+
+배열 이름 + 인덱스 레지스터 형식.
+
+예)
+arrayB[esi]
+
+실제로는
+[arrayB + esi]
+
+와 같은 의미.
+
+
+[5] Scale Factor
+
+배열 원소 크기를 고려해서 인덱스를 계산해야 함.
+
+DWORD 배열에서 4번째 값(index 3)을 읽는 예)
+
+mov esi,3
+mov eax,arrayD[esi*4]
+
+또는
+
+mov esi,3
+mov eax,arrayD[esi*TYPE arrayD]
+
+
+핵심
+- BYTE  : index × 1
+- WORD  : index × 2
+- DWORD : index × 4
+
+
+[6] Pointer
+
+다른 변수의 주소를 저장하고 있는 변수를 pointer라고 함.
+
+예)
+arrayB BYTE 10h,20h,30h
+ptrB DWORD OFFSET arrayB
+
+ptrB에는 arrayB의 주소가 저장됨.
+
+
+[7] TYPEDEF
+
+사용자 정의 타입을 만드는 기능.
+포인터 타입을 만들 때 사용할 수 있음.
+
+예)
+PBYTE  TYPEDEF PTR BYTE
+PWORD  TYPEDEF PTR WORD
+PDWORD TYPEDEF PTR DWORD
+
+
+============================================================
+4.5 JMP and LOOP Instructions
+============================================================
+
+[1] JMP
+
+무조건 해당 label로 이동.
+
+형식
+jmp destination
+
+예)
+top:
+    ...
+    jmp top
+
+조건 없이 계속 top으로 이동하므로
+이렇게 쓰면 무한 반복이 될 수 있음.
+
+
+[2] LOOP
+
+ECX를 반복 횟수로 사용하는 반복 명령어.
+
+형식
+loop label
+
+동작
+1. ECX를 1 감소
+2. ECX가 0이 아니면 label로 이동
+
+
+예)
+mov ecx,5
+
+L1:
+    inc ax
+    loop L1
+
+L1 부분이 총 5번 실행.
+
+
+[3] Nested Loop
+
+중첩 반복문을 사용할 경우
+바깥쪽 ECX 값을 따로 저장해두는 방식이 필요할 수 있음.
+
+안쪽 LOOP도 ECX를 사용하기 때문.
+
+
+[4] 배열 합 구하기
+
+기본 형태
+
+intarray DWORD 10000h,20000h,30000h,40000h
+
+mov edi,OFFSET intarray
+mov ecx,LENGTHOF intarray
+mov eax,0
+
+L1:
+    add eax,[edi]
+    add edi,TYPE intarray
+    loop L1
+
+
+역할
+EDI = 현재 배열 원소 주소
+ECX = 반복 횟수
+EAX = 합계
+
+
+[5] 문자열 복사
+
+source BYTE "This is the source string",0
+target BYTE SIZEOF source DUP(0),0
+
+mov esi,0
+mov ecx,SIZEOF source
+
+L1:
+    mov al,source[esi]
+    mov target[esi],al
+    inc esi
+    loop L1
+
+인덱스를 하나씩 증가시키면서 문자열을 복사함.
+
+
+============================================================
+시험 전에 볼 것
+============================================================
+
+MOV
+- 두 피연산자 크기 같아야 함.
+- 메모리 -> 메모리 직접 이동 안 됨.
+
+MOVZX
+- 상위 비트를 0으로 채움.
+
+MOVSX
+- 부호 유지하면서 확장.
+
+자료형 크기
+BYTE  = 1
+WORD  = 2
+DWORD = 4
+QWORD = 8
+
+배열 주소 이동
+BYTE  다음 원소 = +1
+WORD  다음 원소 = +2
+DWORD 다음 원소 = +4
+
+TYPE
+= 원소 하나 크기
+
+LENGTHOF
+= 원소 개수
+
+SIZEOF
+= 전체 크기
+
+OFFSET
+= 주소
+
+PTR
+= 자료형 크기를 강제로 지정
+
+ZF
+= 결과 0
+
+CF
+= unsigned carry/borrow
+
+SF
+= 음수 결과
+
+OF
+= signed overflow
+
+PF
+= 하위 8비트의 1 개수가 짝수
+
+INC / DEC
+= CF에 영향 없음
+
+LOOP
+= ECX를 자동으로 감소시키면서 반복
+
+
+============================================================
+헷갈리는 부분만 따로
+============================================================
+
+CF / OF
+CF는 unsigned
+OF는 signed
+
+array+1
+다음 원소가 아니라 1바이트 이동임.
+
+MOVSX / MOVZX
+둘 다 작은 값을 큰 레지스터로 옮길 때 쓰는데
+MOVSX는 부호 유지,
+MOVZX는 0으로 채움.
+
+EAX / AX / AL
+EAX 전체를 바꾸는 것과
+AX나 AL만 바꾸는 건 다름.
+
+TYPE / LENGTHOF / SIZEOF
+TYPE = 하나 크기
+LENGTHOF = 몇 개
+SIZEOF = 전체 크기
