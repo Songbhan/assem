@@ -1,0 +1,229 @@
+﻿
+6.10.2 Algorithm Workbench (1~10번)
+============================================================
+
+1번
+AL에 있는 ASCII 숫자('0'~'9')를 해당 숫자 0~9로 바꾸는
+명령어 한 개를 작성하라. 이미 AL이 00h~09h이면 그대로 둬야 한다.
+
+[정답]
+and al,0Fh
+
+[풀이]
+ASCII '0'~'9'는 30h~39h이다. 하위 4비트만 남기면 0~9가 된다.
+예: 35h AND 0Fh = 05h.
+이미 00h~09h인 경우에도 값이 달라지지 않는다.
+
+
+2번
+32비트 메모리 피연산자의 패리티를 계산하는 명령어를 작성하라.
+힌트: B0 XOR B1 XOR B2 XOR B3.
+
+[정답]
+.data
+number DWORD 12345678h
+.code
+mov al,BYTE PTR number
+xor al,BYTE PTR number+1
+xor al,BYTE PTR number+2
+xor al,BYTE PTR number+3
+; 마지막 XOR 뒤 PF에 32비트 전체의 짝/홀 패리티가 반영됨
+
+[풀이]
+32비트는 4바이트(B0,B1,B2,B3)로 구성된다.
+4바이트를 XOR하면 각 비트의 1 개수의 홀짝성이 합쳐진다.
+XOR 결과 AL의 패리티 플래그 PF를 확인하면 원래 32비트
+전체의 1 비트 개수가 짝수인지(PF=1), 홀수인지(PF=0) 알 수 있다.
+PF는 하위 8비트의 1 개수로 계산되므로 마지막 결과를 AL에 둔다.
+
+
+3번
+비트맵 집합 SetX, SetY가 있을 때
+'X에는 속하고 Y에는 속하지 않는 원소'를 나타내는
+비트 문자열을 EAX에 생성하라.
+
+[정답]
+mov eax,SetY
+not eax
+and eax,SetX
+
+[풀이]
+구하려는 집합은 SetX AND (NOT SetY)이다.
+NOT으로 Y에 속하지 않는 비트를 1로 만든 뒤,
+X와 AND하면 X에만 속하는 원소들이 남는다.
+
+
+4번
+DX의 unsigned 값이 CX보다 작거나 같으면 L1으로 점프하라.
+
+[정답]
+cmp dx,cx
+jbe L1
+
+[풀이]
+JBE = Jump if Below or Equal.
+unsigned 비교에서 DX <= CX일 때 점프한다.
+
+
+5번
+AX의 signed 값이 CX보다 크면 L2로 점프하라.
+
+[정답]
+cmp ax,cx
+jg L2
+
+[풀이]
+JG = Jump if Greater.
+signed 비교에서 AX > CX일 때 점프한다.
+
+
+6번
+AL의 비트 0과 1을 먼저 0으로 만든다.
+그 결과가 0이면 L3으로, 0이 아니면 L4로 점프하라.
+
+[정답]
+and al,11111100b
+jz  L3
+jmp L4
+
+[풀이]
+11111100b(=FCh) 마스크로 AND하면 하위 두 비트가 0이 된다.
+AND는 ZF를 설정하므로 결과가 0이면 JZ가 실행된다.
+0이 아니라면 JZ를 지나 JMP L4가 실행된다.
+
+
+7번
+다음 의사코드를 단락 평가(short-circuit)로 구현하라.
+val1과 X는 32비트 변수이다.
+
+if (val1 > ecx) AND (ecx > edx)
+    X = 1
+else
+    X = 2
+
+[정답]
+; val1, X는 DWORD로 선언되어 있다고 가정 (unsigned 비교)
+cmp val1,ecx
+jbe ELSE7             ; 첫 조건 거짓이면 두 번째 비교 생략
+cmp ecx,edx
+jbe ELSE7
+mov X,1
+jmp END7
+ELSE7:
+mov X,2
+END7:
+
+[풀이]
+AND 조건이므로 어느 한 조건만 거짓이어도 X=2이다.
+첫 조건이 거짓이면 바로 ELSE로 이동하여 둘째 조건은 검사하지 않는다.
+이것이 단락 평가이다.
+※ 문제에는 비교값의 signed/unsigned가 명시되어 있지 않다.
+   위 답은 DWORD를 unsigned로 해석한 버전이다.
+   signed 비교를 원하면 JBE 대신 JLE를 사용한다.
+
+
+8번
+다음 의사코드를 단락 평가로 구현하라. X는 32비트 변수이다.
+
+if (ebx > ecx) OR (ebx > val1)
+    X = 1
+else
+    X = 2
+
+[정답]
+; X는 DWORD, val1도 32비트라고 가정 (unsigned 비교)
+cmp ebx,ecx
+ja  TRUE8             ; 첫 조건 참이면 두 번째 비교 생략
+cmp ebx,val1
+ja  TRUE8
+mov X,2
+jmp END8
+TRUE8:
+mov X,1
+END8:
+
+[풀이]
+OR 조건이므로 첫 조건이 참이면 바로 X=1을 실행한다.
+첫 조건이 거짓일 때만 두 번째 조건을 검사한다.
+※ 원문은 부호 여부를 지정하지 않는다. signed 비교라면
+   JA 대신 JG를 사용해야 한다.
+
+
+9번
+다음 의사코드를 단락 평가로 구현하라. X는 32비트 변수이다.
+
+if (ebx > ecx AND ebx > edx) OR (edx > eax)
+    X = 1
+else
+    X = 2
+
+[정답]
+; unsigned 비교 기준
+cmp ebx,ecx
+jbe CHECK_OR9         ; AND 첫 조건 거짓 → OR 쪽 검사
+cmp ebx,edx
+ja  TRUE9             ; AND 두 조건 모두 참 → 전체 참
+CHECK_OR9:
+cmp edx,eax
+ja  TRUE9
+mov X,2
+jmp END9
+TRUE9:
+mov X,1
+END9:
+
+[풀이]
+먼저 (ebx > ecx AND ebx > edx)를 확인한다.
+두 조건이 모두 참이면 (edx > eax)는 검사하지 않는다.
+AND 쪽이 거짓일 때만 오른쪽 OR 조건을 확인한다.
+※ 원문은 부호 여부를 지정하지 않는다. signed 비교면
+   JBE → JLE, JA → JG로 변경한다.
+
+
+10번
+A, B, N이 32비트 signed 정수일 때 다음 의사코드를 구현하라.
+
+while N > 0
+    if N != 3 AND (N < A OR N > B)
+        N = N - 2
+    else
+        N = N - 1
+end while
+
+[정답]
+.data
+A SDWORD ?
+B SDWORD ?
+N SDWORD ?
+.code
+WHILE10:
+    cmp N,0
+    jle END_WHILE10          ; N <= 0이면 종료
+
+    cmp N,3
+    je  MINUS_ONE10         ; N=3이면 AND 조건 거짓
+
+    mov eax,N
+    cmp eax,A
+    jl  MINUS_TWO10         ; N<A이면 OR 참
+    cmp eax,B
+    jg  MINUS_TWO10         ; N>B이면 OR 참
+
+MINUS_ONE10:
+    sub N,1
+    jmp WHILE10
+
+MINUS_TWO10:
+    sub N,2
+    jmp WHILE10
+
+END_WHILE10:
+
+[풀이]
+1) N <= 0이면 while 반복 종료.
+2) N=3이면 AND의 첫 조건이 거짓이므로 N을 1 감소.
+3) N이 3이 아니면 (N<A) 또는 (N>B)를 확인.
+4) 둘 중 하나라도 참이면 N을 2 감소, 아니면 1 감소.
+5) signed 정수로 지정되었으므로 JL/JG/JLE를 사용한다.
+
+

@@ -1,0 +1,791 @@
+﻿어셈블리 6장 - 6.11.2 Programming Exercises 정답과 풀이
+
+========================================================================
+1번. Filling an Array (배열 채우기)
+========================================================================
+[문제]
+DWORD 배열에 j 이상 k 이하의 난수를 N개 생성하여 채운다.
+프로시저 인수: ESI=배열 주소, ECX=N, EAX=j, EBX=k.
+프로시저 호출 전후 레지스터 값을 보존하고 다른 j,k로 2번 호출.
+
+[정답 - 전체 코드]
+INCLUDE Irvine32.inc
+
+.data
+array1 DWORD 8 DUP(?)
+array2 DWORD 8 DUP(?)
+
+.code
+main PROC
+    call Randomize
+
+    mov esi,OFFSET array1
+    mov ecx,LENGTHOF array1
+    mov eax,-5                   ; j
+    mov ebx,5                    ; k
+    call FillArray
+
+    mov esi,OFFSET array1
+    mov ecx,LENGTHOF array1
+    mov ebx,TYPE array1
+    call DumpMem
+
+    mov esi,OFFSET array2
+    mov ecx,LENGTHOF array2
+    mov eax,100                  ; 다른 j
+    mov ebx,110                  ; 다른 k
+    call FillArray
+
+    mov esi,OFFSET array2
+    mov ecx,LENGTHOF array2
+    mov ebx,TYPE array2
+    call DumpMem
+    exit
+main ENDP
+
+; 입력: ESI=주소, ECX=N, EAX=j, EBX=k
+; 출력: 배열 메모리에 N개 난수 저장. 레지스터 모두 복원.
+FillArray PROC USES eax ebx ecx edx esi edi
+    test ecx,ecx
+    jz FillDone
+    cmp eax,ebx
+    jg FillDone                   ; j>k이면 처리하지 않음
+    mov edi,eax                   ; 하한 j
+    sub ebx,edi
+    inc ebx                       ; 범위 크기 = k-j+1
+    jz FillDone                   ; 전체 2^32 범위는 이 예제에서 제외
+FillNext:
+    push ecx                     ; RandomRange 호출 전 반복 횟수 보존
+    mov eax,ebx
+    call RandomRange             ; 0 ~ (k-j)
+    pop ecx
+    add eax,edi                  ; j ~ k
+    mov [esi],eax
+    add esi,TYPE DWORD
+    loop FillNext
+FillDone:
+    ret
+FillArray ENDP
+END main
+
+[풀이]
+- RandomRange는 EAX에 지정한 상한 미만의 난수를 반환한다.
+- 난수 범위를 k-j+1로 정하고 j를 더하면 [j,k]가 된다.
+- USES로 사용한 범용 레지스터들을 복원하므로 호출자의 값이 유지된다.
+- 가정: j<=k, (k-j+1)은 1~FFFFFFFFh 범위에서 표현 가능.
+- 난수 결과는 실행마다 달라지며 DumpMem/디버거에서 확인한다.
+
+========================================================================
+2번. Summing Array Elements in a Range (범위 내 원소 합)
+========================================================================
+[문제]
+부호 있는 DWORD 배열에서 j~k(양 끝 포함)에 속하는 값만 더한다.
+입력: ESI=배열 주소, ECX=개수, EDX=j, EBX=k. 반환: EAX=합계.
+다른 범위로 두 번 호출하고 다른 레지스터들은 보존한다.
+
+[정답 - 전체 코드]
+INCLUDE Irvine32.inc
+
+.data
+nums SDWORD -10,5,12,24,-4,40,7
+
+.code
+main PROC
+    mov esi,OFFSET nums
+    mov ecx,LENGTHOF nums
+    mov edx,0
+    mov ebx,20
+    call SumRange
+    call WriteInt                 ; 24
+    call Crlf
+
+    mov esi,OFFSET nums
+    mov ecx,LENGTHOF nums
+    mov edx,-10
+    mov ebx,10
+    call SumRange
+    call WriteInt                 ; -2
+    call Crlf
+    exit
+main ENDP
+
+; ESI=배열 시작, ECX=개수, EDX=하한, EBX=상한
+; EAX=합계, 다른 범용 레지스터 보존
+SumRange PROC USES ebx ecx edx esi edi
+    xor eax,eax
+    test ecx,ecx
+    jz SumDone
+SumNext:
+    mov edi,[esi]
+    cmp edi,edx
+    jl SumSkip                    ; signed value < j
+    cmp edi,ebx
+    jg SumSkip                    ; signed value > k
+    add eax,edi
+SumSkip:
+    add esi,TYPE nums
+    loop SumNext
+SumDone:
+    ret
+SumRange ENDP
+END main
+
+[풀이]
+- 배열은 SDWORD이므로 signed 비교인 JL/JG를 사용한다.
+- [j,k]에 포함되는 값만 EAX에 더한다.
+- 0~20 합계: 5+12+7=24 / -10~10 합계: -10+5-4+7=-2.
+- 매우 큰 값들의 합은 32비트 오버플로가 발생할 수 있다.
+
+========================================================================
+3번. Test Score Evaluation (점수 학점)
+========================================================================
+[문제]
+0~100 정수를 받아 A/B/C/D/F 중 한 대문자를 AL로 반환하는 CalcGrade 작성.
+구간 A=90~100, B=80~89, C=70~79, D=60~69, F=0~59.
+50~100 범위에서 10개 난수를 만들어 점수와 학점을 출력.
+
+[정답 - 전체 코드]
+INCLUDE Irvine32.inc
+
+.code
+main PROC
+    call Randomize
+    mov ecx,10
+L1:
+    push ecx
+    mov eax,51
+    call RandomRange             ; 0~50
+    add eax,50                   ; 50~100
+    mov esi,eax                  ; 원래 점수 저장
+    call CalcGrade              ; AL = 학점 문자
+    mov bl,al                    ; 학점 저장
+
+    mov eax,esi
+    call WriteDec                ; 점수 출력
+    mov al,' '
+    call WriteChar
+    mov al,bl
+    call WriteChar               ; 학점 출력
+    call Crlf
+    pop ecx
+    loop L1
+    exit
+main ENDP
+
+; 입력 EAX=점수, 출력 AL=학점. 다른 레지스터 변경 없음.
+CalcGrade PROC
+    cmp eax,100
+    ja BadScore
+    cmp eax,90
+    jae GradeA
+    cmp eax,80
+    jae GradeB
+    cmp eax,70
+    jae GradeC
+    cmp eax,60
+    jae GradeD
+    mov al,'F'
+    ret
+GradeA:
+    mov al,'A'
+    ret
+GradeB:
+    mov al,'B'
+    ret
+GradeC:
+    mov al,'C'
+    ret
+GradeD:
+    mov al,'D'
+    ret
+BadScore:
+    mov al,'?'
+    ret
+CalcGrade ENDP
+END main
+
+[풀이]
+- 큰 점수부터 CMP/조건 점프로 분류한다.
+- 점수 입력은 EAX, 학점 반환은 AL이다.
+- EAX 이외의 범용 레지스터는 CalcGrade에서 사용하지 않는다.
+- ? 표시는 문제 범위 밖 점수에 대한 추가 방어 처리다.
+
+========================================================================
+4번. College Registration (수강 등록)
+========================================================================
+[문제]
+6.7.3 College Registration의 등록 판정을 .IF/.ELSEIF 대신
+CMP와 조건 점프로 작성. 학점(credits)은 1~30인지 검사.
+평점과 학점을 입력받아 등록 가능 여부를 출력한다.
+
+[정답 - 전체 코드]
+INCLUDE Irvine32.inc
+
+.data
+promptAvg BYTE "Grade average (0-400): ",0
+promptCr  BYTE "Credits (1-30): ",0
+msgGood   BYTE "The student can register",0
+msgBad    BYTE "The student cannot register",0
+msgError  BYTE "Error: credits must be 1..30",0
+gradeAverage SDWORD ?
+credits      SDWORD ?
+
+.code
+main PROC
+    mov edx,OFFSET promptAvg
+    call WriteString
+    call ReadInt
+    mov gradeAverage,eax
+
+    mov edx,OFFSET promptCr
+    call WriteString
+    call ReadInt
+    mov credits,eax
+
+    cmp eax,1
+    jl InvalidCredits
+    cmp eax,30
+    jg InvalidCredits
+
+    ; 원서 6.7.3 등록 허용 조건
+    ; gradeAverage > 350
+    ; 또는 (gradeAverage > 250 AND credits <= 16)
+    ; 또는 credits <= 12
+    mov eax,gradeAverage
+    cmp eax,350
+    jg Allowed
+    cmp eax,250
+    jle CheckThird
+    cmp credits,16
+    jle Allowed
+CheckThird:
+    cmp credits,12
+    jle Allowed
+
+    mov edx,OFFSET msgBad
+    jmp PrintResult
+Allowed:
+    mov edx,OFFSET msgGood
+    jmp PrintResult
+InvalidCredits:
+    mov edx,OFFSET msgError
+PrintResult:
+    call WriteString
+    call Crlf
+    exit
+main ENDP
+END main
+
+[풀이]
+- 6.7.3 교재의 판정 기준(0~400점 척도):
+  (평점>350) OR (평점>250 AND 학점<=16) OR (학점<=12).
+- 먼저 credits가 1~30인지 검사한 다음 조건 분기를 수행한다.
+- 문제의 핵심은 .IF 없이 CMP/JG/JLE/JMP로 같은 논리를 짜는 것이다.
+- 등록 판정 규칙은 첨부한 문제 사진에는 직접 나오지 않아 원서 6.7.3을 추가로 확인하였다.
+  참조: https://cs.smu.ca/~tami/downloads/csci2328/IrvineAssemblyEd6.pdf
+- 교재 조건을 정확히 따른 예제이며 0~400 범위를 벗어난 평점 검사는 추가하지 않았다.
+
+========================================================================
+5번. Boolean Calculator (1) (메뉴 + 테이블 선택)
+========================================================================
+[문제]
+32비트 정수용 논리 연산 계산기의 메뉴를 만든다.
+1. x AND y / 2. x OR y / 3. NOT x / 4. x XOR y / 5. 종료.
+선택한 연산의 이름을 출력하는 프로시저를 테이블 검색으로 호출한다.
+이 단계에서는 실제 비트 연산을 수행하지 않는다.
+
+[정답 - 전체 코드]
+INCLUDE Irvine32.inc
+
+.data
+menu BYTE 0Dh,0Ah,"1. x AND y",0Dh,0Ah
+     BYTE "2. x OR y",0Dh,0Ah
+     BYTE "3. NOT x",0Dh,0Ah
+     BYTE "4. x XOR y",0Dh,0Ah
+     BYTE "5. Exit",0Dh,0Ah,"Choice: ",0
+badMsg BYTE "Invalid choice",0
+andMsg BYTE "Selected: AND",0
+orMsg  BYTE "Selected: OR",0
+notMsg BYTE "Selected: NOT",0
+xorMsg BYTE "Selected: XOR",0
+
+CaseTable BYTE '1'
+          DWORD AND_op
+EntrySize = ($ - CaseTable)
+          BYTE '2'
+          DWORD OR_op
+          BYTE '3'
+          DWORD NOT_op
+          BYTE '4'
+          DWORD XOR_op
+
+.code
+main PROC
+    mov edx,OFFSET menu
+    call WriteString
+    call ReadChar
+    cmp al,'5'
+    je Done
+
+    mov ebx,OFFSET CaseTable
+    mov ecx,4
+SearchNext:
+    cmp al,[ebx]
+    je Found
+    add ebx,EntrySize
+    loop SearchNext
+    mov edx,OFFSET badMsg
+    call WriteString
+    jmp Done
+Found:
+    call NEAR PTR [ebx+1]         ; 검색한 프로시저 주소로 호출
+Done:
+    call Crlf
+    exit
+main ENDP
+
+AND_op PROC
+    mov edx,OFFSET andMsg
+    call WriteString
+    ret
+AND_op ENDP
+OR_op PROC
+    mov edx,OFFSET orMsg
+    call WriteString
+    ret
+OR_op ENDP
+NOT_op PROC
+    mov edx,OFFSET notMsg
+    call WriteString
+    ret
+NOT_op ENDP
+XOR_op PROC
+    mov edx,OFFSET xorMsg
+    call WriteString
+    ret
+XOR_op ENDP
+END main
+
+[풀이]
+- 테이블의 각 항목 = 선택 문자(1바이트) + 프로시저 주소(4바이트).
+- EntrySize는 5, EBX는 각 항목의 시작 주소를 가리킨다.
+- 일치하면 [EBX+1]의 4바이트 주소를 간접 CALL 한다.
+- 5번은 종료 기능이므로 호출 테이블 밖에서 처리한다.
+
+========================================================================
+6번. Boolean Calculator (2) (실제 논리 계산)
+========================================================================
+[문제]
+5번을 확장하여 AND_op, OR_op, NOT_op, XOR_op 구현.
+사용자에게 16진수 정수를 입력받아 연산하고 16진수 결과를 출력.
+메뉴 선택은 5번과 같은 테이블 검색을 사용한다.
+
+[정답 - 전체 코드]
+INCLUDE Irvine32.inc
+
+.data
+menu BYTE 0Dh,0Ah,"1. AND",0Dh,0Ah
+     BYTE "2. OR",0Dh,0Ah,"3. NOT",0Dh,0Ah
+     BYTE "4. XOR",0Dh,0Ah,"5. Exit",0Dh,0Ah
+     BYTE "Choice: ",0
+msgX BYTE "First hex integer: ",0
+msgY BYTE "Second hex integer: ",0
+msgR BYTE "Result = ",0
+msgErr BYTE "Invalid choice",0
+numX DWORD ?
+numY DWORD ?
+
+CaseTable BYTE '1'
+          DWORD AND_op
+EntrySize = ($ - CaseTable)
+          BYTE '2'
+          DWORD OR_op
+          BYTE '3'
+          DWORD NOT_op
+          BYTE '4'
+          DWORD XOR_op
+
+.code
+main PROC
+MenuTop:
+    mov edx,OFFSET menu
+    call WriteString
+    call ReadChar
+    cmp al,'5'
+    je Done
+    mov ebx,OFFSET CaseTable
+    mov ecx,4
+SearchNext:
+    cmp al,[ebx]
+    je Found
+    add ebx,EntrySize
+    loop SearchNext
+    mov edx,OFFSET msgErr
+    call WriteString
+    call Crlf
+    jmp MenuTop
+Found:
+    call NEAR PTR [ebx+1]
+    jmp MenuTop
+Done:
+    exit
+main ENDP
+
+ReadTwo PROC
+    mov edx,OFFSET msgX
+    call WriteString
+    call ReadHex
+    mov numX,eax
+    mov edx,OFFSET msgY
+    call WriteString
+    call ReadHex
+    mov numY,eax
+    ret
+ReadTwo ENDP
+
+ShowResult PROC
+    push eax
+    mov edx,OFFSET msgR
+    call WriteString
+    pop eax
+    call WriteHex
+    call Crlf
+    ret
+ShowResult ENDP
+
+AND_op PROC
+    call ReadTwo
+    mov eax,numX
+    and eax,numY
+    call ShowResult
+    ret
+AND_op ENDP
+
+OR_op PROC
+    call ReadTwo
+    mov eax,numX
+    or eax,numY
+    call ShowResult
+    ret
+OR_op ENDP
+
+NOT_op PROC
+    mov edx,OFFSET msgX
+    call WriteString
+    call ReadHex
+    not eax
+    call ShowResult
+    ret
+NOT_op ENDP
+
+XOR_op PROC
+    call ReadTwo
+    mov eax,numX
+    xor eax,numY
+    call ShowResult
+    ret
+XOR_op ENDP
+END main
+
+[풀이]
+- ReadHex는 16진수 값을 EAX에 입력받는다.
+- AND/OR/XOR는 두 수에, NOT은 한 수에 적용한다.
+- NOT은 32비트 전체의 비트를 뒤집는다.
+- 메뉴를 반복해서 실행하며 5를 선택할 때 종료한다.
+
+========================================================================
+7번. Probabilities and Colors (확률과 글자 색)
+========================================================================
+[문제]
+20줄을 각각 무작위 색으로 출력한다.
+흰색 30%, 파랑 10%, 초록 60%가 되도록 난수 구간을 나눈다.
+10회 실행 시 분포를 관찰한다.
+
+[정답 - 전체 코드]
+INCLUDE Irvine32.inc
+
+.data
+message BYTE "Random color line",0
+
+.code
+main PROC
+    call Randomize
+    mov ecx,20
+NextLine:
+    push ecx
+    mov eax,10
+    call RandomRange             ; 0~9
+    cmp eax,3
+    jb WhiteLine                 ; 0,1,2 (30%)
+    je BlueLine                 ; 3 (10%)
+    mov eax,green + (black * 16) ; 4~9 (60%)
+    jmp DisplayLine
+WhiteLine:
+    mov eax,white + (black * 16)
+    jmp DisplayLine
+BlueLine:
+    mov eax,blue + (black * 16)
+DisplayLine:
+    call SetTextColor
+    mov edx,OFFSET message
+    call WriteString
+    call Crlf
+    pop ecx
+    loop NextLine
+    mov eax,lightGray + (black * 16)
+    call SetTextColor
+    exit
+main ENDP
+END main
+
+[풀이]
+- RandomRange(10)의 결과는 0~9, 모두 동일 확률이라고 가정한다.
+- 0~2 흰색, 3 파랑, 4~9 초록으로 매핑한다.
+- 매 실행 결과가 정확히 6:2:12줄이 되는 것은 아니다(확률 분포).
+- 한 번에 20줄 × 10회 실행하며 색 분포를 관찰한다.
+
+========================================================================
+8번. Message Encryption (반복 키 XOR 암호화)
+========================================================================
+[문제]
+6.3.4 XOR 암호화 예제 확장. 키를 여러 문자로 지정하고,
+평문 각 바이트에 키를 반복 적용해서 암호화와 복호화한다.
+사용 예: 키 ABXmv#7 (끝나면 첫 글자로 돌아가 반복).
+
+[정답 - 전체 코드]
+INCLUDE Irvine32.inc
+
+BUFMAX = 128
+
+.data
+keyBytes BYTE "ABXmv#7",0
+KEYLEN = LENGTHOF keyBytes - 1
+buffer BYTE BUFMAX+1 DUP(0)
+bufSize DWORD ?
+prompt BYTE "Plain text: ",0
+cipherMsg BYTE "Encrypted hex bytes: ",0
+plainMsg BYTE "Decrypted: ",0
+
+.code
+main PROC
+    mov edx,OFFSET prompt
+    call WriteString
+    mov edx,OFFSET buffer
+    mov ecx,BUFMAX
+    call ReadString
+    mov bufSize,eax
+
+    call TranslateBuffer          ; 평문 → 암호문
+    mov edx,OFFSET cipherMsg
+    call WriteString
+    call DisplayCipherHex         ; 암호문에 00h가 있을 수 있어 hex로 출력
+
+    call TranslateBuffer          ; 암호문 → 평문
+    mov edx,OFFSET plainMsg
+    call WriteString
+    mov edx,OFFSET buffer
+    call WriteString
+    call Crlf
+    exit
+main ENDP
+
+TranslateBuffer PROC USES eax ecx esi edi
+    mov ecx,bufSize
+    test ecx,ecx
+    jz TranslateDone
+    xor esi,esi                   ; 메시지 인덱스
+    xor edi,edi                   ; 키 인덱스
+TranslateNext:
+    mov al,keyBytes[edi]
+    xor buffer[esi],al
+    inc esi
+    inc edi
+    cmp edi,KEYLEN
+    jb KeyOK
+    xor edi,edi                   ; 키 인덱스 순환
+KeyOK:
+    loop TranslateNext
+TranslateDone:
+    ret
+TranslateBuffer ENDP
+
+DisplayCipherHex PROC USES eax ebx ecx edx esi
+    mov ecx,bufSize
+    test ecx,ecx
+    jz HexDone
+    xor esi,esi
+HexNext:
+    push ecx
+    movzx eax,BYTE PTR buffer[esi]
+    mov ebx,1
+    call WriteHexB                ; 1바이트를 2자리 16진수로 출력
+    mov al,' '
+    call WriteChar
+    inc esi
+    pop ecx
+    loop HexNext
+HexDone:
+    call Crlf
+    ret
+DisplayCipherHex ENDP
+END main
+
+[풀이]
+- 메시지 인덱스와 키 인덱스를 따로 관리한다.
+- 키 인덱스가 KEYLEN에 도달하면 0으로 돌아간다.
+- (바이트 XOR 키) XOR 같은 키 = 원래 바이트이므로 복호화도 동일 프로시저.
+- 암호문에 00h나 제어 문자가 생길 수 있어 16진수로 출력한다.
+- 학습용 XOR 변환이며 실제 보안용 암호화로는 적합하지 않다.
+
+========================================================================
+9번. Validating a PIN (5자리 PIN 검사)
+========================================================================
+[문제]
+5자리 PIN을 담은 BYTE 배열을 전달받는다.
+자리별 허용 범위: 1번 5~9, 2번 2~5, 3번 4~8,
+4번 1~4, 5번 3~6.
+유효하면 EAX=0, 틀린 자리가 있으면 EAX=그 위치(1~5).
+유효 2개, 무효 2개 이상의 배열로 검증.
+
+[정답 - 전체 코드]
+INCLUDE Irvine32.inc
+
+.data
+minDigit BYTE 5,2,4,1,3
+maxDigit BYTE 9,5,8,4,6
+pinGood1 BYTE 5,2,4,1,3
+pinGood2 BYTE 9,5,8,4,6
+pinBad1  BYTE 3,5,4,3,4       ; 첫 자리 무효
+pinBad2  BYTE 6,4,5,3,7       ; 다섯 번째 자리 무효
+msgOK BYTE "Valid",0Dh,0Ah,0
+msgNG BYTE "Invalid at position ",0
+
+.code
+main PROC
+    mov esi,OFFSET pinGood1
+    call Validate_PIN
+    call ShowPinResult
+    mov esi,OFFSET pinGood2
+    call Validate_PIN
+    call ShowPinResult
+    mov esi,OFFSET pinBad1
+    call Validate_PIN
+    call ShowPinResult
+    mov esi,OFFSET pinBad2
+    call Validate_PIN
+    call ShowPinResult
+    exit
+main ENDP
+
+; ESI = 숫자 5개를 담은 BYTE 배열의 주소
+; EAX = 0(정상), 1~5(처음 잘못된 위치)
+Validate_PIN PROC USES ebx ecx edx esi edi
+    xor edi,edi
+    mov ecx,5
+CheckNext:
+    mov bl,[esi+edi]
+    cmp bl,minDigit[edi]
+    jb Invalid
+    cmp bl,maxDigit[edi]
+    ja Invalid
+    inc edi
+    loop CheckNext
+    xor eax,eax
+    ret
+Invalid:
+    mov eax,edi
+    inc eax
+    ret
+Validate_PIN ENDP
+
+ShowPinResult PROC USES eax edx
+    cmp eax,0
+    jne PrintInvalid
+    mov edx,OFFSET msgOK
+    call WriteString
+    ret
+PrintInvalid:
+    push eax
+    mov edx,OFFSET msgNG
+    call WriteString
+    pop eax
+    call WriteDec
+    call Crlf
+    ret
+ShowPinResult ENDP
+END main
+
+[풀이]
+- 문자 '5'(ASCII 35h)가 아니라 숫자 5(05h)를 BYTE 배열에 저장한다.
+- 각 자리를 표의 최솟값/최댓값과 비교하며 처음 틀린 자리에서 즉시 반환.
+- 사용한 범용 레지스터는 USES로 복원하고 EAX만 결과를 반환한다.
+- 원문의 '64535가 마지막 자리 때문에 무효'라는 설명은 표와 모순된다.
+  64535는 표의 각 자리 범위를 모두 만족한다.
+  그래서 테스트에는 마지막 자리만 범위를 벗어나는 64537을 사용했다.
+
+========================================================================
+10번. Parity Checking (배열 전체 패리티 확인)
+========================================================================
+[문제]
+BYTE 배열의 모든 비트에 대해 1의 개수가 짝수이면 EAX=1,
+홀수이면 EAX=0을 반환하는 프로시저 작성.
+입력: ESI=배열 시작 주소, ECX=배열 길이.
+서로 다른 패리티의 10바이트 이상 배열 두 개로 검사.
+
+[정답 - 전체 코드]
+INCLUDE Irvine32.inc
+
+.data
+arrayEven BYTE 1,1,0,0,2,2,3,3,4,4
+arrayOdd  BYTE 1,0,0,0,0,0,0,0,0,0
+msgEven BYTE "Even parity result (1): ",0
+msgOdd  BYTE "Odd parity result (0): ",0
+
+.code
+main PROC
+    mov esi,OFFSET arrayEven
+    mov ecx,LENGTHOF arrayEven
+    call CheckParity
+    push eax
+    mov edx,OFFSET msgEven
+    call WriteString
+    pop eax
+    call WriteDec
+    call Crlf
+
+    mov esi,OFFSET arrayOdd
+    mov ecx,LENGTHOF arrayOdd
+    call CheckParity
+    push eax
+    mov edx,OFFSET msgOdd
+    call WriteString
+    pop eax
+    call WriteDec
+    call Crlf
+    exit
+main ENDP
+
+; ESI=바이트 배열, ECX=길이
+; EAX=1(짝수 패리티), EAX=0(홀수 패리티)
+CheckParity PROC USES ecx edx esi
+    xor edx,edx                  ; 누적 XOR의 DL만 사용
+    test ecx,ecx
+    jz ParityDone
+ParityNext:
+    xor dl,[esi]
+    inc esi
+    loop ParityNext
+ParityDone:
+    test dl,dl                   ; 전체 XOR 결과로 PF 재설정
+    setpe al                     ; PF=1(짝수)이면 AL=1
+    movzx eax,al
+    ret
+CheckParity ENDP
+END main
+
+[풀이]
+- 각 바이트를 모두 XOR하면 전체 1비트 개수의 짝/홀 정보가 남는다.
+- TEST DL,DL로 PF를 다시 설정한다. INC 등은 플래그를 바꾸므로
+  반복문 도중의 PF만 믿지 말 것.
+- SETPE AL은 PF=1이면 AL에 1, 아니면 0을 넣는다.
+- 테스트: arrayEven → 1, arrayOdd → 0이 예상된다.

@@ -1,0 +1,342 @@
+﻿6.10.1 Short Answer (1~19번)
+============================================================
+
+1번
+다음 명령어를 실행한 뒤 BX의 값은?
+
+mov bx,0FFFFh
+and bx,6Bh
+
+[정답]
+BX = 006Bh
+
+[풀이]
+FFFFh는 16비트가 전부 1이다.
+FFFFh AND 006Bh = 006Bh.
+AND는 두 비트가 모두 1인 자리만 1로 남긴다.
+
+
+2번
+다음 명령어를 실행한 뒤 BX의 값은?
+
+mov bx,91BAh
+and bx,92h
+
+[정답]
+BX = 0092h
+
+[풀이]
+91BAh AND 0092h = 0092h.
+하위 바이트 BA(10111010b)와 92(10010010b)를 AND하면 92h이다.
+
+
+3번
+다음 명령어를 실행한 뒤 BX의 값은?
+
+mov bx,0649Bh
+or bx,3Ah
+
+[정답]
+BX = 64BBh
+
+[풀이]
+649Bh OR 003Ah = 64BBh.
+OR은 어느 한쪽 비트라도 1이면 결과가 1이다.
+
+
+4번
+다음 명령어를 실행한 뒤 BX의 값은?
+
+mov bx,029D6h
+xor bx,8181h
+
+[정답]
+BX = A857h
+
+[풀이]
+29D6h XOR 8181h = A857h.
+XOR은 대응 비트가 서로 다르면 1, 같으면 0이다.
+
+
+5번
+다음 명령어를 실행한 뒤 EBX의 값은?
+
+mov ebx,0AFAF649Bh
+or ebx,3A219604h
+
+[정답]
+EBX = BFAFF69Fh
+
+[풀이]
+AFAF649Bh OR 3A219604h = BFAFF69Fh.
+32비트 값이므로 결과를 8자리 16진수로 나타낸다.
+
+
+6번
+다음 명령어를 실행한 뒤 RBX의 값은?
+
+mov rbx,0AFAF649Bh
+xor rbx,0FFFFFFFFh
+
+[정답]
+RBX = FFFFFFFF50509B64h
+(교재가 의도한 64비트 즉시값의 부호 확장 동작 기준)
+
+[풀이]
+먼저 RBX = 00000000AFAF649Bh.
+64비트 XOR의 32비트 즉시값 FFFFFFFFh는 CPU 명령어에서
+64비트로 부호 확장되어 FFFFFFFFFFFFFFFFh가 된다.
+즉, 64비트 모든 비트를 반전하는 것과 같다.
+
+00000000AFAF649Bh
+XOR FFFFFFFFFFFFFFFFh
+=   FFFFFFFF50509B64h
+
+주의: 어셈블러마다 '0FFFFFFFFh'라는 양수 형태의 즉시값 표기를
+허용하는지 차이가 있을 수 있다. 명령어의 부호 확장 규칙과
+소스 표기의 허용 여부는 구분해야 한다.
+
+
+7번
+각 연산 뒤 AL의 값을 8비트 이진수로 나타내라.
+
+mov al,01101111b
+and al,00101101b       ; a
+mov al,6Dh
+and al,4Ah              ; b
+mov al,00001111b
+or  al,61h              ; c
+mov al,94h
+xor al,37h              ; d
+
+[정답]
+a. AL = 00101101b
+b. AL = 01001000b
+c. AL = 01101111b
+d. AL = 10100011b
+
+[풀이]
+a. 01101111 AND 00101101 = 00101101
+b. 6Dh AND 4Ah = 48h = 01001000b
+c. 0Fh OR 61h = 6Fh = 01101111b
+d. 94h XOR 37h = A3h = 10100011b
+각 소문제는 새로운 MOV AL부터 시작하므로 이전 결과는 이어지지 않는다.
+
+
+8번
+각 연산 뒤 AL의 값을 16진수로 나타내라.
+
+mov al,7Ah
+not al                  ; a
+mov al,3Dh
+and al,74h              ; b
+mov al,9Bh
+or  al,35h              ; c
+mov al,72h
+xor al,0DCh             ; d
+
+[정답]
+a. AL = 85h
+b. AL = 34h
+c. AL = BFh
+d. AL = AEh
+
+[풀이]
+a. NOT 7Ah = 85h (8비트 비트 반전)
+b. 3Dh AND 74h = 34h
+c. 9Bh OR 35h = BFh
+d. 72h XOR DCh = AEh
+
+
+9번
+각 명령어가 끝난 뒤 Carry(CF), Zero(ZF), Sign(SF) 플래그는?
+
+mov al,00001111b
+test al,00000010b      ; a. CF= ZF= SF=
+mov al,00000110b
+cmp al,00000101b       ; b. CF= ZF= SF=
+mov al,00000101b
+cmp al,00000111b       ; c. CF= ZF= SF=
+
+[정답]
+a. CF=0, ZF=0, SF=0
+b. CF=0, ZF=0, SF=0
+c. CF=1, ZF=0, SF=1
+
+[풀이]
+a. 0Fh TEST 02h → AND 결과 02h(0 아님, 최상위 비트 0).
+   TEST는 CF를 0으로 설정하므로 CF=0, ZF=0, SF=0.
+b. 6 - 5 = 1 → 빌림 없음, 0 아님, 양수 → 0, 0, 0.
+c. 5 - 7 = -2 = FEh(8비트) → 빌림 있음, 0 아님,
+   최상위 비트 1 → 1, 0, 1.
+CMP와 TEST는 원래 AL 값을 바꾸지는 않고 플래그를 변경한다.
+
+
+10번
+ECX의 값에 따라 분기하는 조건 점프 명령어는?
+
+[정답]
+JECXZ
+
+[풀이]
+JECXZ는 ECX=0일 때 지정된 레이블로 점프한다.
+LOOP와 달리 ECX를 감소시키지 않는다.
+
+
+11번
+JA와 JNBE는 Zero Flag와 Carry Flag의 영향을 어떻게 받는가?
+
+[정답]
+둘 다 CF=0이고 ZF=0일 때 점프한다.
+JA와 JNBE는 동일한 조건의 명령어이다.
+
+[풀이]
+JA = Jump if Above (부호 없는 비교에서 >).
+JNBE = Jump if Not Below or Equal.
+조건은 (CF=0 AND ZF=0)이다.
+CF 또는 ZF 중 하나라도 1이면 점프하지 않는다.
+
+
+12번
+다음 코드 실행 뒤 EDX의 값은?
+
+mov edx,1
+mov eax,7FFFh
+cmp eax,8000h
+jl  L1
+mov edx,0
+L1:
+
+[정답]
+EDX = 1
+
+[풀이]
+EAX=00007FFFh=32767, 비교 대상 00008000h=32768.
+JL은 signed(부호 있는) 비교에서 작으면 점프한다.
+32767 < 32768이므로 점프하여 mov edx,0을 건너뛴다.
+
+
+13번
+다음 코드 실행 뒤 EDX의 값은?
+
+mov edx,1
+mov eax,7FFFh
+cmp eax,8000h
+jb  L1
+mov edx,0
+L1:
+
+[정답]
+EDX = 1
+
+[풀이]
+JB는 unsigned(부호 없는) 비교에서 작으면 점프한다.
+00007FFFh < 00008000h 이므로 분기하고 EDX=1이 유지된다.
+
+
+14번
+다음 코드 실행 뒤 EDX의 값은?
+
+mov edx,1
+mov eax,7FFFh
+cmp eax,0FFFF8000h
+jl  L2
+mov edx,0
+L2:
+
+[정답]
+EDX = 0
+
+[풀이]
+7FFFh는 32비트 signed에서 +32767.
+FFFF8000h는 32비트 signed에서 -32768.
+JL은 32767 < -32768인지 검사하므로 조건이 거짓이다.
+분기하지 않고 mov edx,0을 실행한다.
+
+
+15번 (True/False)
+다음 코드는 Target 레이블로 점프하는가?
+
+mov eax,-30
+cmp eax,-50
+jg  Target
+
+[정답]
+True (참)
+
+[풀이]
+JG는 signed 비교에서 앞의 값이 더 클 때 점프한다.
+-30 > -50이므로 Target으로 점프한다.
+
+
+16번 (True/False)
+다음 코드는 Target 레이블로 점프하는가?
+
+mov eax,-42
+cmp eax,26
+ja  Target
+
+[정답]
+True (참)
+
+[풀이]
+JA는 unsigned 비교 명령어이다.
+EAX=-42의 비트 패턴은 FFFFFFD6h로, unsigned로 보면
+큰 양수(4294967254)이다. 26보다 크므로 점프한다.
+음수라고 해서 JA를 signed 비교처럼 해석하면 안 된다.
+
+
+17번
+다음 명령어를 실행한 뒤 RBX의 값은?
+
+mov rbx,0FFFFFFFFFFFFFFFFh
+and rbx,80h
+
+[정답]
+RBX = 0000000000000080h
+
+[풀이]
+처음 RBX의 64비트가 모두 1이다.
+80h와 AND하면 비트 7만 남아서 80h가 된다.
+
+
+18번
+다음 명령어를 실행한 뒤 RBX의 값은?
+
+mov rbx,0FFFFFFFFFFFFFFFh
+and rbx,808080h
+
+[정답]
+RBX = 0000000000808080h
+
+[풀이]
+초기 값 0FFFFFFFFFFFFFFFh는 상위 4비트가 0이고 나머지는 1이다.
+AND에 사용한 808080h는 양의 즉시값이므로
+나머지 비트가 0으로 채워진 마스크와 AND한다.
+결과는 0000000000808080h이다.
+
+
+19번
+다음 명령어를 실행한 뒤 RBX의 값은?
+
+mov rbx,0FFFFFFFFFFFFFFFh
+and rbx,80808080h
+
+[정답]
+RBX = 0FFFFFFF80808080h
+(32비트 즉시값의 64비트 부호 확장 기준)
+
+[풀이]
+여기서 80808080h의 최상위 비트(32비트 기준)는 1이다.
+64비트 AND 명령어의 imm32 피연산자는 부호 확장되어
+FFFFFFFF80808080h가 된다.
+
+0FFFFFFFFFFFFFFFh
+AND FFFFFFFF80808080h
+=   0FFFFFFF80808080h
+
+17, 18번과 달리 19번은 상위 비트도 일부 남는다는 점이 핵심.
+참고: 어셈블러에 따라 위 32비트 양수 형태의 즉시값을
+그대로 허용하지 않을 수 있지만, x86-64 명령어의 부호 확장
+규칙은 위와 같다.
+
