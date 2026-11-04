@@ -1,0 +1,636 @@
+﻿========================================================================
+1번. Display ASCII Decimal (WriteScaled)
+[문제]
+EDX에 숫자 문자열의 주소, ECX에 길이, EBX에 소수점 이하 자리 수를 전달받아
+소수점을 포함한 문자열을 표시하는 WriteScaled 프로시저를 작성하라.
+서로 다른 크기의 숫자를 3번 출력해 테스트하라.
+예: "100123456789765", DECIMAL_OFFSET=5 → 1001234567.89765
+
+[정답 - 전체 코드]
+INCLUDE Irvine32.inc
+
+DECIMAL_OFFSET = 5
+.data
+number1 BYTE "100123456789765"      ; 1001234567.89765
+number2 BYTE "12345678"             ; 123.45678
+number3 BYTE "42"                   ; 0.00042
+
+.code
+main PROC
+    mov edx,OFFSET number1
+    mov ecx,LENGTHOF number1
+    mov ebx,DECIMAL_OFFSET
+    call WriteScaled
+    call Crlf
+
+    mov edx,OFFSET number2
+    mov ecx,LENGTHOF number2
+    mov ebx,DECIMAL_OFFSET
+    call WriteScaled
+    call Crlf
+
+    mov edx,OFFSET number3
+    mov ecx,LENGTHOF number3
+    mov ebx,DECIMAL_OFFSET
+    call WriteScaled
+    call Crlf
+    exit
+main ENDP
+
+; Receives: EDX=숫자문자열 주소, ECX=길이, EBX=소수 자릿수
+; Returns: 화면 출력. 기존 레지스터들은 보존
+WriteScaled PROC USES eax ebx ecx edx esi edi
+    mov esi,edx                 ; 현재 문자열 위치
+    mov edi,ecx                 ; 정수 자리의 개수 계산
+    sub edi,ebx
+    cmp ebx,0
+    je PrintAll                 ; 소수 자릿수 0이면 소수점 없음
+    cmp ecx,ebx
+    ja PrintWithPoint           ; 정수 부분이 1자리 이상
+
+    ; 길이가 소수 자릿수보다 작거나 같은 경우: 0.000...
+    mov al,'0'
+    call WriteChar
+    mov al,'.'
+    call WriteChar
+    mov edi,ebx
+    sub edi,ecx                 ; 앞에 채워야 할 0의 개수
+PadZero:
+    cmp edi,0
+    je PrintAll
+    mov al,'0'
+    call WriteChar
+    dec edi
+    jmp PadZero
+
+PrintWithPoint:
+    cmp ecx,0
+    je Finish
+NextDigit:
+    cmp edi,0
+    jne NoPoint
+    mov al,'.'
+    call WriteChar
+NoPoint:
+    mov al,[esi]
+    call WriteChar
+    inc esi
+    dec edi
+    dec ecx
+    jnz NextDigit
+    jmp Finish
+
+PrintAll:
+    cmp ecx,0
+    je Finish
+NextDigitNoPoint:
+    mov al,[esi]
+    call WriteChar
+    inc esi
+    dec ecx
+    jnz NextDigitNoPoint
+Finish:
+    ret
+WriteScaled ENDP
+END main
+
+[풀이]
+문자열을 왼쪽부터 하나씩 WriteChar로 출력한다.
+숫자 길이에서 EBX를 뺀 위치에 소수점을 삽입한다.
+길이가 EBX보다 짧으면 "0." 뒤에 필요한 0을 채워 출력한다.
+예상 출력:
+1001234567.89765
+123.45678
+0.00042
+
+========================================================================
+2번. Extended Subtraction Procedure
+[문제]
+같은 저장 크기를 가진 두 큰 이진 정수를 빼는 Extended_Sub을 작성하라.
+크기는 32비트의 배수이고 임의의 길이를 지원해야 한다.
+길이 10바이트 이상의 서로 다른 정수 쌍 여러 개로 테스트하라.
+
+[정답 - 전체 코드]
+INCLUDE Irvine32.inc
+.data
+; DWORD 배열의 첫 원소가 가장 낮은 32비트 부분이다.
+a1 DWORD 00000000h,00000000h,00000001h  ; 12바이트
+b1 DWORD 00000001h,00000000h,00000000h
+r1 DWORD 3 DUP(?)
+a2 DWORD 9,8,7,6                         ; 16바이트
+b2 DWORD 1,2,3,4
+r2 DWORD 4 DUP(?)
+msg1 BYTE "Result 1 (low DWORD first):",0
+msg2 BYTE "Result 2 (low DWORD first):",0
+
+.code
+main PROC
+    mov esi,OFFSET a1
+    mov edi,OFFSET b1
+    mov edx,OFFSET r1
+    mov ecx,LENGTHOF a1
+    call Extended_Sub
+
+    mov edx,OFFSET msg1
+    call WriteString
+    call Crlf
+    mov esi,OFFSET r1
+    mov ebx,TYPE r1
+    mov ecx,LENGTHOF r1
+    call DumpMem
+
+    mov esi,OFFSET a2
+    mov edi,OFFSET b2
+    mov edx,OFFSET r2
+    mov ecx,LENGTHOF a2
+    call Extended_Sub
+
+    mov edx,OFFSET msg2
+    call WriteString
+    call Crlf
+    mov esi,OFFSET r2
+    mov ebx,TYPE r2
+    mov ecx,LENGTHOF r2
+    call DumpMem
+    exit
+main ENDP
+
+; Receives: ESI=피감수, EDI=감수, EDX=결과 주소, ECX=DWORD 수
+; 결과 저장: 결과 주소의 최하위 DWORD부터 차례대로
+Extended_Sub PROC USES eax ebx ecx edx esi edi
+    jecxz SubDone
+    clc
+SubLoop:
+    mov eax,DWORD PTR [esi]
+    sbb eax,DWORD PTR [edi]     ; 이전 자리의 빌림(CF) 반영
+    mov DWORD PTR [edx],eax
+    lea esi,[esi+4]            ; LEA는 CF를 변경하지 않음
+    lea edi,[edi+4]
+    lea edx,[edx+4]
+    loop SubLoop               ; LOOP도 CF를 변경하지 않음
+SubDone:
+    ret
+Extended_Sub ENDP
+END main
+
+[풀이]
+하위 DWORD에서 시작해 SBB로 빌림을 다음 DWORD까지 전파한다.
+주소를 이동할 때 ADD 대신 LEA를 이용하면 CF가 유지된다.
+DumpMem으로 결과 메모리를 확인한다.
+예상 DWORD 결과:
+r1 = FFFFFFFFh, FFFFFFFFh, 00000000h
+r2 = 00000008h, 00000006h, 00000004h, 00000002h
+(최하위 DWORD를 먼저 적은 순서.)
+
+========================================================================
+3번. Packed Decimal Conversion
+[문제]
+4바이트 packed BCD 숫자를 8개의 ASCII 숫자 문자로 변환하는 PackedToAsc를 작성하라.
+입력은 packed 정수와 ASCII 출력 버퍼의 주소. 5개의 값으로 테스트하라.
+
+[정답 - 전체 코드]
+INCLUDE Irvine32.inc
+.data
+packedNums DWORD 12345678h,90501234h,00000000h,99999999h,40250306h
+asciiBuf BYTE 9 DUP(0)        ; 8개 숫자 + 문자열 종결 문자
+.code
+main PROC
+    mov esi,OFFSET packedNums
+    mov ecx,LENGTHOF packedNums
+NextNum:
+    push ecx
+    push esi
+    mov edi,OFFSET asciiBuf
+    call PackedToAsc
+    mov edx,OFFSET asciiBuf
+    call WriteString
+    call Crlf
+    pop esi
+    pop ecx
+    add esi,TYPE packedNums
+    loop NextNum
+    exit
+main ENDP
+
+; Receives: ESI=4바이트 packed BCD 주소, EDI=ASCII 9바이트 버퍼
+; 주의: BCD의 각 nibble은 0~9여야 함
+PackedToAsc PROC USES eax ebx ecx esi edi
+    lea esi,[esi+3]            ; 최고 자리 바이트부터
+    mov ecx,4
+ConvertLoop:
+    mov al,BYTE PTR [esi]
+    mov bl,al
+    shr al,4                   ; 상위 자리
+    add al,'0'
+    mov BYTE PTR [edi],al
+    inc edi
+    mov al,bl
+    and al,0Fh                 ; 하위 자리
+    add al,'0'
+    mov BYTE PTR [edi],al
+    inc edi
+    dec esi
+    loop ConvertLoop
+    mov BYTE PTR [edi],0       ; WriteString용 0 종료
+    ret
+PackedToAsc ENDP
+END main
+
+[풀이]
+packed BCD의 바이트마다 상위 4비트/하위 4비트가 각각 10진 숫자 한 자리다.
+숫자에 30h를 더하면 ASCII '0'~'9'가 된다.
+리틀 엔디언이므로 높은 주소의 바이트부터 읽어야 숫자가 정상 순서로 출력된다.
+예상 출력:
+12345678
+90501234
+00000000
+99999999
+40250306
+
+========================================================================
+4번. Encryption Using Rotate Operations
+[문제]
+문자열의 각 바이트를 회전하여 암호화하는 프로시저를 작성하라.
+키 = -2,4,1,0,-3,5,2,-4,-4,6 (음수: 왼쪽 / 양수: 오른쪽 회전).
+키는 10바이트마다 반복한다. 복호화는 반대 방향 회전.
+서로 다른 두 문자열에서 암호화 → 복호화가 되는지 테스트하라.
+
+[정답 - 전체 코드]
+INCLUDE Irvine32.inc
+.data
+rotateKey SBYTE -2,4,1,0,-3,5,2,-4,-4,6
+msg1 BYTE "Assembly language example",0
+msg2 BYTE "Rotate operations are reversible",0
+label1 BYTE "Message 1: ",0
+label2 BYTE "Message 2: ",0
+.code
+main PROC
+    mov edx,OFFSET label1
+    call WriteString
+    mov edx,OFFSET msg1
+    call WriteString
+    call Crlf
+
+    mov esi,OFFSET msg1
+    mov ecx,LENGTHOF msg1 - 1
+    mov edx,0                  ; 암호화
+    call RotateCipher
+    mov esi,OFFSET msg1
+    mov ecx,LENGTHOF msg1 - 1
+    mov ebx,1
+    call DumpMem               ; 암호문은 제어 문자를 포함할 수 있어 16진 출력
+
+    mov esi,OFFSET msg1
+    mov ecx,LENGTHOF msg1 - 1
+    mov edx,1                  ; 복호화
+    call RotateCipher
+    mov edx,OFFSET msg1
+    call WriteString
+    call Crlf
+    call Crlf
+
+    mov edx,OFFSET label2
+    call WriteString
+    mov edx,OFFSET msg2
+    call WriteString
+    call Crlf
+
+    mov esi,OFFSET msg2
+    mov ecx,LENGTHOF msg2 - 1
+    mov edx,0
+    call RotateCipher
+    mov esi,OFFSET msg2
+    mov ecx,LENGTHOF msg2 - 1
+    mov ebx,1
+    call DumpMem
+
+    mov esi,OFFSET msg2
+    mov ecx,LENGTHOF msg2 - 1
+    mov edx,1
+    call RotateCipher
+    mov edx,OFFSET msg2
+    call WriteString
+    call Crlf
+    exit
+main ENDP
+
+; Receives: ESI=문자열 버퍼, ECX=문자 개수, EDX=0 암호화 / 1 복호화
+; ECX는 회전 수 지정에 쓰는 CL과 겹치므로 EBP에 개수를 별도로 보관한다.
+RotateCipher PROC USES eax ebx ecx edx esi edi ebp
+    mov ebp,ecx
+    xor edi,edi                ; 키 인덱스
+    test ebp,ebp
+    jz FinishCipher
+ProcessChar:
+    mov al,BYTE PTR [esi]
+    mov bl,rotateKey[edi]      ; signed 회전 수
+    cmp edx,0
+    je DirectionReady
+    neg bl                     ; 복호화 시 방향 반전
+DirectionReady:
+    test bl,80h
+    jnz ShiftLeft
+    mov cl,bl
+    ror al,cl
+    jmp StoreByte
+ShiftLeft:
+    neg bl
+    mov cl,bl
+    rol al,cl
+StoreByte:
+    mov BYTE PTR [esi],al
+    inc esi
+    inc edi
+    cmp edi,LENGTHOF rotateKey
+    jb KeepKeyIndex
+    xor edi,edi
+KeepKeyIndex:
+    dec ebp
+    jnz ProcessChar
+FinishCipher:
+    ret
+RotateCipher ENDP
+END main
+
+[풀이]
+키가 양수이면 ROR, 음수이면 ROL을 실행한다.
+복호화할 때는 키의 부호를 뒤집으면 회전 방향도 반대가 된다.
+키 인덱스를 0~9로 순환시켜 문자열이 10바이트보다 길어도 처리한다.
+암호문에는 0바이트가 생길 수 있으므로 WriteString 대신 DumpMem으로 확인한다.
+복호화 후에는 원문 문자열이 그대로 복원되는 것이 예상 결과다.
+
+========================================================================
+5번. Prime Numbers
+[문제]
+에라토스테네스의 체(Sieve of Eratosthenes)를 이용해 2~1000의 모든 소수를
+생성하고 표시하라.
+
+[정답 - 전체 코드]
+INCLUDE Irvine32.inc
+.data
+isPrime BYTE 1001 DUP(1)
+.code
+main PROC
+    mov BYTE PTR isPrime[0],0
+    mov BYTE PTR isPrime[1],0
+    mov esi,2                  ; 현재 소수 후보 p
+OuterLoop:
+    cmp esi,31                 ; p*p <= 1000인 동안만 지움
+    ja PrintPrimes
+    cmp BYTE PTR isPrime[esi],0
+    je NextCandidate
+    mov eax,esi
+    imul eax,esi               ; p*p부터 배수 지우기
+MarkLoop:
+    cmp eax,1000
+    ja NextCandidate
+    mov BYTE PTR isPrime[eax],0
+    add eax,esi
+    jmp MarkLoop
+NextCandidate:
+    inc esi
+    jmp OuterLoop
+
+PrintPrimes:
+    mov esi,2
+PrintLoop:
+    cmp esi,1000
+    ja Finish
+    cmp BYTE PTR isPrime[esi],1
+    jne SkipNumber
+    push esi
+    mov eax,esi
+    call WriteDec
+    mov al,' '
+    call WriteChar
+    pop esi
+SkipNumber:
+    inc esi
+    jmp PrintLoop
+Finish:
+    call Crlf
+    exit
+main ENDP
+END main
+
+[풀이]
+2부터 시작해서 소수 p의 배수들을 제거한다.
+p*p 이전 배수들은 더 작은 소수 단계에서 이미 지워졌으므로 p*p부터 시작.
+소수 2~1000의 개수는 168개이며, 마지막 소수는 997이다.
+
+========================================================================
+6번. Greatest Common Divisor (GCD)
+[문제]
+절댓값 변환 후 나머지를 반복해서 구하는 유클리드 호제법으로 최대공약수
+프로시저를 만들고, 여러 정수 쌍을 테스트하고 출력하라.
+
+[정답 - 전체 코드]
+INCLUDE Irvine32.inc
+.data
+pairs SDWORD 48,18, -270,192, 0,25, 1071,462
+pairCount = LENGTHOF pairs / 2
+.code
+main PROC
+    mov esi,OFFSET pairs
+    mov ecx,pairCount
+NextPair:
+    push ecx
+    push esi
+    mov eax,SDWORD PTR [esi]
+    mov ebx,SDWORD PTR [esi+4]
+    call GCD
+    call WriteDec
+    call Crlf
+    pop esi
+    pop ecx
+    add esi,8
+    loop NextPair
+    exit
+main ENDP
+
+; Receives: EAX=x, EBX=y (signed 32비트 정수)
+; Returns: EAX=gcd(|x|,|y|); 다른 범용 레지스터 보존
+GCD PROC USES ecx edx
+    cmp eax,0
+    jge AbsXDone
+    neg eax                     ; 부호 없는 비트 패턴으로 양의 크기 취급
+AbsXDone:
+    mov ecx,ebx
+    cmp ecx,0
+    jge AbsYDone
+    neg ecx
+AbsYDone:
+    test ecx,ecx
+    jz GCDFinish                ; gcd(x,0)=|x|
+GCDLoop:
+    xor edx,edx
+    div ecx                     ; unsigned magnitude에 대한 나머지
+    mov eax,ecx
+    mov ecx,edx
+    test ecx,ecx
+    jnz GCDLoop
+GCDFinish:
+    ret
+GCD ENDP
+END main
+
+[풀이]
+GCD(x,y) → GCD(y,x mod y)를 나머지가 0이 될 때까지 반복한다.
+음수를 절댓값 크기로 변환한 후 DIV로 나머지를 계산한다.
+-2147483648의 절댓값은 signed 32비트에는 없지만 unsigned 패턴 80000000h로
+계산할 수 있다. gcd(0,0)은 수학적으로 정의되지 않으므로 입력에서 제외.
+예상 출력 (한 줄씩): 6 / 6 / 25 / 21
+
+========================================================================
+7번. Bitwise Multiplication
+[문제]
+BitwiseMultiply 프로시저를 작성하라. EBX에 unsigned 32비트 정수를,
+EAX에 다른 unsigned 32비트 정수를 받아 시프트와 덧셈으로 곱한다.
+결과는 EAX에 반환, 곱이 32비트를 넘지 않는다고 가정한다.
+
+[정답 - 전체 코드]
+INCLUDE Irvine32.inc
+.data
+pairs DWORD 12345,36, 17,19, 65535,2
+pairCount = LENGTHOF pairs / 2
+.code
+main PROC
+    mov esi,OFFSET pairs
+    mov ecx,pairCount
+NextTest:
+    push ecx
+    push esi
+    mov eax,DWORD PTR [esi]      ; 피승수
+    mov ebx,DWORD PTR [esi+4]    ; 승수
+    call BitwiseMultiply
+    call WriteDec
+    call Crlf
+    pop esi
+    pop ecx
+    add esi,8
+    loop NextTest
+    exit
+main ENDP
+
+; Receives: EAX=피승수, EBX=승수 (unsigned)
+; Returns: EAX=곱 (32비트 이내)
+BitwiseMultiply PROC USES ebx ecx edx
+    mov edx,eax                  ; 왼쪽으로 이동할 피승수
+    xor eax,eax                  ; 누적 곱
+    mov ecx,32
+MultiplyLoop:
+    test ebx,1
+    jz SkipAdd
+    add eax,edx                  ; 승수 비트가 1이면 더함
+SkipAdd:
+    shl edx,1                   ; 피승수 2배
+    shr ebx,1                   ; 다음 승수 비트 확인
+    loop MultiplyLoop
+    ret
+BitwiseMultiply ENDP
+END main
+
+[풀이]
+이진 곱셈은 승수의 1비트가 켜진 자리에 해당하는 (피승수 << 자리수)를
+모두 더하는 계산이다. 매 회 EBX의 최하위 비트를 확인하고 EDX를 한 칸씩 민다.
+예상 출력: 444420 / 323 / 131070
+
+========================================================================
+8번. Add Packed Integers
+[문제]
+임의 길이(4/8/16바이트)를 가진 같은 크기의 packed decimal 두 수를
+더하는 AddPacked를 작성하라.
+입력: ESI=첫 번째 수, EDI=두 번째 수, EDX=합의 버퍼, ECX=바이트 수.
+
+[정답 - 전체 코드]
+INCLUDE Irvine32.inc
+.data
+; 낮은 바이트가 낮은 자릿수이므로 각 바이트 순서는 역순으로 저장.
+a4  BYTE 4 DUP(99h)
+b4  BYTE 01h,3 DUP(0)
+sum4 BYTE 5 DUP(0)
+a8  BYTE 78h,56h,34h,12h,4 DUP(0)
+b8  BYTE 22h,43h,65h,87h,4 DUP(0)
+sum8 BYTE 9 DUP(0)
+a16 BYTE 16 DUP(99h)
+b16 BYTE 01h,15 DUP(0)
+sum16 BYTE 17 DUP(0)
+msg4 BYTE "4-byte packed sum (low byte first):",0
+msg8 BYTE "8-byte packed sum (low byte first):",0
+msg16 BYTE "16-byte packed sum (low byte first):",0
+.code
+main PROC
+    mov esi,OFFSET a4
+    mov edi,OFFSET b4
+    mov edx,OFFSET sum4
+    mov ecx,LENGTHOF a4
+    call AddPacked
+    mov edx,OFFSET msg4
+    call WriteString
+    call Crlf
+    mov esi,OFFSET sum4
+    mov ebx,1
+    mov ecx,LENGTHOF sum4
+    call DumpMem
+
+    mov esi,OFFSET a8
+    mov edi,OFFSET b8
+    mov edx,OFFSET sum8
+    mov ecx,LENGTHOF a8
+    call AddPacked
+    mov edx,OFFSET msg8
+    call WriteString
+    call Crlf
+    mov esi,OFFSET sum8
+    mov ebx,1
+    mov ecx,LENGTHOF sum8
+    call DumpMem
+
+    mov esi,OFFSET a16
+    mov edi,OFFSET b16
+    mov edx,OFFSET sum16
+    mov ecx,LENGTHOF a16
+    call AddPacked
+    mov edx,OFFSET msg16
+    call WriteString
+    call Crlf
+    mov esi,OFFSET sum16
+    mov ebx,1
+    mov ecx,LENGTHOF sum16
+    call DumpMem
+    exit
+main ENDP
+
+; Receives: ESI=수1, EDI=수2, EDX=합 버퍼(ECX+1 바이트), ECX=길이
+; 두 입력의 바이트 순서는 least-significant byte first
+; DAA/ADC는 x86 32비트 모드에서 사용
+AddPacked PROC USES eax ebx ecx edx esi edi
+    xor ebx,ebx                  ; 배열 인덱스
+    jecxz NoDigits
+    clc
+PackedLoop:
+    mov al,BYTE PTR [esi+ebx]
+    adc al,BYTE PTR [edi+ebx]   ; 이전 10진 올림 포함
+    daa                         ; AL packed decimal로 보정
+    mov BYTE PTR [edx+ebx],al
+    inc ebx                     ; INC는 CF 보존
+    loop PackedLoop             ; LOOP도 CF 보존
+    mov al,0
+    adc al,0                    ; 마지막 올림을 추가 바이트에 저장
+    mov BYTE PTR [edx+ebx],al
+    jmp PackedDone
+NoDigits:
+    mov BYTE PTR [edx],0
+PackedDone:
+    ret
+AddPacked ENDP
+END main
+
+[풀이]
+낮은 자릿수부터 각 packed BCD 바이트를 ADC로 더하고 DAA로 보정한다.
+DAA는 10진수 올림을 CF에 남긴다. INC와 LOOP는 CF를 바꾸지 않는다.
+결과 버퍼는 마지막 자리 올림을 위해 입력보다 1바이트 크게 선언한다.
+예상 내용 (낮은 바이트부터):
+sum4 : 00 00 00 00 01 (99999999+1)
+sum8 : 00 00 00 00 01 00 00 00 00 (12345678+87654322=100000000)
+sum16: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 01
