@@ -1,0 +1,187 @@
+﻿==================================================
+1. 스택 프레임 (Stack Frame) 
+==================================================
+- 스택 프레임: 프로시저가 사용하는 매개변수, 복귀 주소, 지역변수, 저장 레지스터 공간.
+- ESP: 현재 스택의 맨 위를 가리킴. PUSH/POP으로 계속 변할 수 있음.
+- EBP: 프로시저의 스택 프레임 기준 주소로 사용.
+
+[32비트 기본 스택 배치: push ebp / mov ebp,esp 이후]
+  [EBP+12]  두 번째 매개변수
+  [EBP+8]   첫 번째 매개변수
+  [EBP+4]   복귀 주소 (CALL이 넣은 값)
+  [EBP]     저장한 이전 EBP
+  [EBP-4]   첫 번째 4바이트 지역변수
+  [EBP-8]   두 번째 4바이트 지역변수
+  ※ 예: 지역변수와 매개변수가 각각 4바이트일 때.
+  ※ PUSH한 레지스터, 매개변수 크기, 프레임 구성에 따라 배치는 달라질 수 있음.
+
+프로시저 시작(프롤로그):
+    push ebp
+    mov  ebp,esp
+    sub  esp,8       ; 지역변수 8바이트 확보
+
+프로시저 종료(에필로그):
+    mov  esp,ebp     ; 지역변수 공간 해제
+    pop  ebp         ; 이전 EBP 복원
+    ret
+
+[값 전달 / 참조 전달]
+- 값 전달(Pass by Value): 값 자체를 PUSH. 원본 변수와 별개의 복사본.
+- 참조 전달(Pass by Reference): 값이 저장된 주소(OFFSET)를 PUSH.
+- 배열은 보통 시작 주소를 넘겨서 처리함.
+    push val1          ; 값 전달
+    push OFFSET val1   ; 주소 전달
+
+[매개변수 접근 예시]
+호출부:
+    push 6
+    push 5
+    call AddTwo
+
+AddTwo PROC
+    push ebp
+    mov  ebp,esp
+    mov  eax,[ebp+8]     ; 5
+    add  eax,[ebp+12]    ; +6 → EAX=11
+    pop  ebp
+    ret  8                ; 4바이트 매개변수 2개 제거
+AddTwo ENDP
+
+핵심: CALL은 복귀 주소를 넣기 때문에 [EBP+4]가 매개변수가 아님.
+
+==================================================
+2. 스택 정리와 호출 규약
+==================================================
+- C 호출 규약(CDECL): 호출자가 매개변수를 정리.
+    push 6
+    push 5
+    call AddTwo_Cdecl
+    add  esp,8          ; 호출자가 8바이트 정리
+  ※ AddTwo_Cdecl은 매개변수를 직접 정리하지 않고 일반 RET으로 끝나는 경우.
+
+- STDCALL: 호출된 프로시저가 매개변수를 정리.
+    ret 8              ; RET 후 매개변수 8바이트만큼 ESP 이동
+
+- 어느 쪽이 스택을 정리하는지 먼저 확인해야 함.
+- 호출자와 피호출자가 모두 8바이트 정리하거나 둘 다 정리하지 않으면
+  이후 RET의 복귀 위치가 잘못되는 등 스택이 손상될 수 있음.
+- 레지스터를 PUSH로 보존했다면 POP은 반대 순서로 해야 함.
+
+==================================================
+3. 지역변수 / LEA / ENTER / LEAVE / LOCAL 
+==================================================
+- 지역변수는 보통 [EBP-4], [EBP-8]처럼 음수 오프셋에 놓임.
+- sub esp,8 : 지역변수로 쓸 공간 8바이트 확보.
+- mov esp,ebp : 프레임 기준으로 ESP 복귀(지역변수 공간 해제).
+
+LEA: 메모리의 '값'이 아니라 '주소'를 구함.
+    lea esi,[ebp-30]   ; EBP-30 위치의 주소를 ESI에 저장
+    mov al,[esi]       ; 그 주소에 들어 있는 값 읽기
+
+ENTER / LEAVE:
+    enter 8,0          ; EBP 저장, 프레임 설정, 지역변수 8바이트 확보
+    ...
+    leave              ; mov esp,ebp + pop ebp와 같은 역할
+    ret
+
+LOCAL 지시어: 지역변수 이름과 크기를 선언.
+    MySub PROC
+        LOCAL x:DWORD, y:DWORD
+        ...
+        ret
+    MySub ENDP
+
+- ENTER는 크기로 공간을 잡고, LOCAL은 변수 이름을 지정하는 차이가 있음.
+
+==================================================
+4. 재귀 호출 (Recursion) 
+==================================================
+- 재귀: 프로시저가 직접 또는 간접적으로 자기 자신을 CALL.
+- 반드시 종료 조건(Base Case)이 있어야 함. 없으면 스택이 계속 쌓임.
+- 재귀 단계마다 복귀 주소와 매개변수 등이 스택에 따로 쌓임.
+- 끝에 도달하면 마지막 호출부터 역순으로 RET하며 계산을 마무리.
+
+[CalcSum 예제 흐름]
+    cmp ecx,0
+    jz  Done
+    add eax,ecx
+    dec ecx
+    call CalcSum
+Done:
+    ret
+
+ECX=5, EAX=0으로 시작하면: 5 + 4 + 3 + 2 + 1 = 15
+
+[Factorial 예제]
+- Factorial(5) = 5 × 4 × 3 × 2 × 1 = 120
+- 종료 조건 n=0 → EAX=1 (0! = 1)
+- Factorial(n-1)을 CALL한 뒤 돌아오면서 n을 곱해 EAX에 반환.
+- 강의자료 예시는 매개변수 n을 스택으로 받고 RET 4로 정리.
+
+==================================================
+5. INVOKE / ADDR / PROC / PROTO
+==================================================
+INVOKE: 32비트 MASM에서 매개변수 전달과 프로시저 호출을 한 줄로 작성.
+    INVOKE AddTwo,5,6
+- PUSH 순서는 선언된 호출 규약에 맞춰 어셈블러가 처리.
+
+ADDR: INVOKE에서 변수의 주소(포인터)를 전달.
+    INVOKE Swap,ADDR x,ADDR y
+- 값 전달과 주소 전달을 혼동하면 안 됨.
+- 슬라이드에서는 ADDR을 INVOKE와 함께 사용하는 방식으로 설명.
+
+PROC: 프로시저 정의. 이름 붙은 매개변수를 선언할 수 있음.
+PROTO: 호출 전에 프로시저의 매개변수 형식(원형)을 선언.
+USES: 지정한 레지스터 저장/복원을 자동으로 처리.
+
+[선언과 호출 형식]
+    AddTwo PROTO, a:DWORD, b:DWORD
+
+    ; 호출하는 곳
+    INVOKE AddTwo,5,6
+
+    ; 정의하는 곳
+    AddTwo PROC a:DWORD, b:DWORD
+        mov eax,a
+        add eax,b
+        ret
+    AddTwo ENDP
+
+- 위 PROC/INVOKE 예시는 32비트 STDCALL 설정을 가정.
+- 반환값을 EAX에 남기려면 EAX를 무조건 복원하지 않도록 주의.
+
+[포인터를 이용한 Swap 예제 핵심]
+    Swap PROTO, pValX:PTR DWORD, pValY:PTR DWORD
+    INVOKE Swap,ADDR x,ADDR y
+
+    Swap PROC USES eax esi edi, pValX:PTR DWORD, pValY:PTR DWORD
+        mov  esi,pValX
+        mov  edi,pValY
+        mov  eax,[esi]
+        xchg eax,[edi]
+        mov  [esi],eax
+        ret
+    Swap ENDP
+
+- pValX, pValY는 숫자 그 자체가 아니라 DWORD 값이 있는 메모리 주소.
+- 포인터 크기와 실제 가리키는 자료형을 맞춰야 함.
+- 실수 예: BYTE 주소를 DWORD 포인터처럼 전달하거나, 1000h를
+  유효한 주소인 것처럼 전달하면 잘못된 메모리 접근이 일어날 수 있음.
+- WriteStackFrame: 현재 프로시저의 매개변수/복귀주소/지역변수 등을 확인.
+
+==================================================
+6. 다중 모듈 프로그램
+==================================================
+- 큰 프로그램을 여러 ASM 파일(모듈)로 나누고 각자 OBJ로 어셈블한 뒤 링크.
+- PUBLIC: 다른 모듈에서 접근하도록 이름 공개.
+- PRIVATE / OPTION PROC:PRIVATE: 프로시저를 모듈 안에서 감춤.
+- EXTERN: 다른 모듈에 정의된 프로시저/변수를 참조한다고 선언.
+- EXTERNDEF: PUBLIC과 EXTERN을 함께 다루는 선언.
+
+예:
+    PUBLIC MyProc
+    EXTERN AddTwo@8:PROC   ; 32비트 STDCALL 이름 장식 예시
+    EXTERNDEF count:DWORD
+
+- '@8'은 그 프로시저의 매개변수 총 8바이트를 가리킴.
+- 모듈 사이에서 이름과 매개변수 형식을 일치시켜야 함.
