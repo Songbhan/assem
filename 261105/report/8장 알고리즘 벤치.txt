@@ -1,0 +1,165 @@
+﻿8장 Advanced Procedures
+
+============================================================
+1번. STDCALL 방식에서 다음 명령어를 실행한 직후, AddThree에서 EBP를 PUSH한
+상태의 스택 프레임을 그려라.
+
+push 10h
+push 20h
+push 30h
+call AddThree
+
+[정답]
+                  낮은 주소
+             +---------------------+ <- ESP (push ebp 직후)
+             | 호출자의 이전 EBP   |
+             +---------------------+
+             | CALL의 복귀 주소    |
+             +---------------------+
+             | 30h                 | <- 첫 번째 인수
+             +---------------------+
+             | 20h                 | <- 두 번째 인수
+             +---------------------+
+             | 10h                 | <- 세 번째 인수
+             +---------------------+
+                  높은 주소
+
+이어서 mov ebp,esp를 실행한 기준:
+[EBP+0] 이전 EBP / [EBP+4] 복귀 주소 / [EBP+8] 30h
+[EBP+12] 20h / [EBP+16] 10h
+[풀이]
+PUSH는 마지막 30h가 스택 맨 위가 되도록 저장하고,
+CALL은 복귀 주소를 PUSH한다. AddThree의 push ebp가 마지막으로 실행되어
+이전 EBP가 스택 맨 위에 놓인다. 아직 mov ebp,esp를 하지 않았으므로
+EBP 레지스터 자체는 예전 값을 가리키고 있다.
+
+============================================================
+2번. 세 정수 매개변수를 받아 합을 계산하고 EAX로 돌려주는 AddThree를 작성하라.
+[정답 - PROC 매개변수 버전]
+AddThree PROC, a:DWORD, b:DWORD, c:DWORD
+    mov eax,a
+    add eax,b
+    add eax,c
+    ret
+AddThree ENDP
+
+호출 예: INVOKE AddThree,10h,20h,30h
+반환값: EAX = 60h
+[풀이]
+PROC 매개변수 선언을 사용하면 MASM이 스택 인수를 해당 이름으로 참조한다.
+STDCALL 프로시저에서는 보통 인수 3개(12바이트)의 스택 정리 코드도 자동 생성된다.
+수동 스택 프레임을 사용한다면 a=[ebp+8], b=[ebp+12], c=[ebp+16]이다.
+
+============================================================
+3번. DWORD 배열을 가리키는 pArray 지역변수를 선언하라.
+[정답]
+LOCAL pArray:PTR DWORD
+[풀이]
+PTR DWORD는 DWORD 원소를 가리키는 포인터 형식이다.
+
+============================================================
+4번. 20바이트 배열인 buffer 지역변수를 선언하라.
+[정답]
+LOCAL buffer[20]:BYTE
+[풀이]
+BYTE 원소 20개이므로 20바이트가 필요하다.
+
+============================================================
+5번. 16비트 부호 없는 정수를 가리키는 pwArray 지역변수를 선언하라.
+[정답]
+LOCAL pwArray:PTR WORD
+[풀이]
+WORD는 16비트이며 타입 자체는 signed/unsigned를 구분하는 이름이다.
+
+============================================================
+6번. 8비트 부호 있는 정수를 저장하는 myByte 지역변수를 선언하라.
+[정답]
+LOCAL myByte:SBYTE
+[풀이]
+SBYTE는 부호 있는 8비트 정수다.
+
+============================================================
+7번. DWORD 원소 20개인 myArray 지역배열을 선언하라.
+[정답]
+LOCAL myArray[20]:DWORD
+[풀이]
+20 * 4 = 80바이트의 지역변수 공간이 필요하다.
+
+============================================================
+8번. 전경색(forecolor), 배경색(backcolor) 두 스택 매개변수를 받아
+SetTextColor를 호출하는 SetColor 프로시저를 선언하라.
+[정답]
+SetColor PROC, foreground:DWORD, background:DWORD
+    mov eax,background
+    shl eax,4
+    or eax,foreground
+    call SetTextColor
+    ret
+SetColor ENDP
+
+[풀이]
+Irvine32의 SetTextColor는 EAX에 색 속성을 전달한다.
+색 속성 = 전경색 + (배경색 * 16).
+8번은 색 지정만 수행하고, 문자 출력은 9번에서 구현한다.
+
+============================================================
+9번. 문자, 전경색, 배경색을 받아 해당 색으로 문자 한 개를 출력하는
+WriteColorChar 프로시저를 작성하라.
+[정답]
+WriteColorChar PROC, ch:DWORD, foreground:DWORD, background:DWORD
+    mov eax,background
+    shl eax,4
+    or eax,foreground
+    call SetTextColor
+    mov eax,ch
+    call WriteChar              ; AL에 문자 ASCII가 들어감
+    ret
+WriteColorChar ENDP
+
+호출 예: INVOKE WriteColorChar,'A',yellow,blue
+
+============================================================
+10번. Irvine32의 DumpMem을 감싸는 DumpMemory 프로시저를 만들라.
+매개변수와 USES를 이용하고 INVOKE로 호출 가능하게 하라.
+[정답]
+DumpMemory PROTO, pArray:PTR DWORD, n:DWORD, elemSize:DWORD
+
+DumpMemory PROC USES eax ebx ecx edx esi edi,
+    pArray:PTR DWORD, n:DWORD, elemSize:DWORD
+    mov esi,pArray          ; 시작 주소
+    mov ecx,n               ; 원소 개수
+    mov ebx,elemSize        ; 원소당 크기 (바이트)
+    call DumpMem
+    ret
+DumpMemory ENDP
+
+호출 예: INVOKE DumpMemory, OFFSET array, LENGTHOF array, TYPE array
+[풀이]
+DumpMem은 ESI=주소, ECX=원소 수, EBX=원소 크기를 입력받는다.
+호출자가 이를 직접 설정하지 않아도 되도록 3개 스택 인수로 받게 만들었다.
+USES로 사용한 레지스터를 보존한다.
+
+============================================================
+11번. 두 DWORD 배열의 포인터와 원소 개수를 받는 MultArray PROC와 PROTO를 작성하라.
+[정답]
+MultArray PROTO, pA:PTR DWORD, pB:PTR DWORD, itemCount:DWORD
+
+MultArray PROC USES esi edi ecx,
+    pA:PTR DWORD, pB:PTR DWORD, itemCount:DWORD
+    mov esi,pA             ; 첫 번째 배열 주소
+    mov edi,pB             ; 두 번째 배열 주소
+    mov ecx,itemCount      ; 원소 개수
+    ; 배열 원소를 처리하는 부분은 문제에 구체적으로 지정되지 않음
+    ret
+MultArray ENDP
+
+[풀이]
+문제는 인수 3개를 받는 프로시저와 PROTO 선언을 요구한다.
+어떤 계산을 할지는 명시되어 있지 않으므로 배열 연산을 임의로 추가하지 않았다.
+
+[암기]
+PROC ..., parameter:TYPE : 매개변수 선언
+LOCAL name:TYPE        : 지역변수 선언
+USES reglist          : 레지스터 저장/복원
+INVOKE proc, args     : 인수 전달 + 호출
+STDCALL              : 피호출자 쪽에서 매개변수 스택 정리
