@@ -149,7 +149,8 @@ Average = 30.00
 Enter 5 numbers: 1 2 3 4 6
 Average = 3.20
 ```
-
+## 실행 결과 화면
+![프로그램 실행결과](result.jpg)
 
 ## 7. 결론
 
