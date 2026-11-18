@@ -1,0 +1,248 @@
+﻿어셈블리 9장 핵심 개념 정리
+============================================================
+1. 문자열 기본 명령어 (2~10쪽)
+============================================================
+문자열 명령어는 ESI, EDI를 이용해 메모리에 접근하고
+처리한 원소의 크기만큼 주소를 자동으로 이동시킨다.
+
+ESI : 원본(Source) 주소
+EDI : 대상(Destination) 주소
+ECX : REP 사용 시 남은 반복 횟수
+AL / AX / EAX : BYTE / WORD / DWORD 데이터를 처리하는 레지스터
+
+명령어        동작                         이동하는 레지스터
+MOVSB/W/D    [ESI] -> [EDI] 복사           ESI, EDI
+CMPSB/W/D    [ESI] - [EDI] 비교            ESI, EDI
+SCASB/W/D    AL/AX/EAX - [EDI] 비교        EDI
+STOSB/W/D    AL/AX/EAX -> [EDI] 저장       EDI
+LODSB/W/D    [ESI] -> AL/AX/EAX 읽기       ESI
+
+B = BYTE(1바이트), W = WORD(2바이트), D = DWORD(4바이트)
+예: MOVSD 한 번 실행하면 DWORD 하나를 복사하고 주소가 4만큼 이동.
+CMPS, SCAS는 CMP처럼 플래그만 설정하고 비교 대상 값은 유지한다.
+
+[DF : Direction Flag]
+CLD : DF = 0, 주소 증가 (낮은 주소 -> 높은 주소)
+STD : DF = 1, 주소 감소 (높은 주소 -> 낮은 주소)
+역방향 처리 시 마지막 원소 주소부터 시작해야 한다.
+
+[반복 접두사]
+REP          : ECX가 0이 될 때까지 반복 (주로 MOVS, STOS)
+REPE / REPZ  : 비교 결과가 같으면(ZF=1) 계속 반복
+REPNE / REPNZ: 비교 결과가 다르면(ZF=0) 계속 반복
+REPE, REPNE는 CMPS, SCAS와 함께 사용하고 ECX=0이면 종료한다.
+ECX가 처음부터 0이면 명령어를 실행하지 않는다.
+ECX가 0이 아니면 첫 비교를 실행한 뒤 ZF를 확인한다.
+
+[핵심 예제 1 : DWORD 배열 복사 - 전체 코드]
+INCLUDE Irvine32.inc
+.data
+source DWORD 10,20,30
+target DWORD 3 DUP(?)
+.code
+main PROC
+    cld
+    mov esi,OFFSET source
+    mov edi,OFFSET target
+    mov ecx,LENGTHOF source
+    rep movsd
+    exit
+main ENDP
+END main
+
+예상 결과: target = 10,20,30 / ECX = 0
+ESI와 EDI는 각각 시작 주소에서 12바이트 증가한다.
+REP MOVSD의 ECX는 바이트 수가 아니라 DWORD 원소 개수이다.
+
+[핵심 예제 2 : 문자 F 찾기 - 전체 코드]
+INCLUDE Irvine32.inc
+.data
+alpha BYTE "ABCDEFGH",0
+.code
+main PROC
+    cld
+    mov edi,OFFSET alpha
+    mov al,'F'
+    mov ecx,LENGTHOF alpha
+    repne scasb
+    jnz notFound
+    dec edi
+notFound:
+    exit
+main ENDP
+END main
+
+예상 결과: F를 찾으면 ZF=1, ECX=3 (종료 문자까지 총 9개 중 6개 비교).
+SCASB는 비교 후 EDI를 이동시키므로 찾은 직후 EDI는 G를 가리킨다.
+따라서 DEC EDI를 해야 실제 F의 주소가 된다.
+마지막 원소에서 찾으면 ECX=0일 수도 있으므로 ZF로 성공 여부 판단.
+
+[추가 예제 흐름]
+- REPE CMPSD : 두 DWORD 배열을 비교하다 다른 값이 나오면 종료.
+- REP STOSB : AL의 값으로 배열을 채움 (9쪽 예제는 FFh).
+- LODSD -> MUL -> STOSD -> LOOP : DWORD 배열 원소마다 10을 곱함.
+  (10쪽 예제: 1,2,...,10 -> 10,20,...,100)
+
+============================================================
+2. 문자열 처리 프로시저 (11~22쪽)
+============================================================
+문자열은 마지막에 NULL(00h)을 넣어 끝을 표시한다.
+예: msg BYTE "Hello",0
+    실제 문자열 길이 = 5 / 저장 공간 = 6바이트
+    NULL(00h)과 문자 '0'(30h)는 서로 다르다.
+
+Str_compare : 두 문자열 비교 (대소문자 구분)
+  INVOKE Str_compare, ADDR str1, ADDR str2
+  str1 < str2 : CF=1, ZF=0 -> JB
+  str1 = str2 : CF=0, ZF=1 -> JE
+  str1 > str2 : CF=0, ZF=0 -> JA
+  EAX로 결과를 반환하는 것이 아니라 CF, ZF로 판단한다.
+
+Str_length : 문자열 길이를 EAX에 반환 (NULL 제외)
+  INVOKE Str_length, ADDR msg
+
+Str_copy : 원본 문자열을 대상에 복사 (NULL 포함)
+  INVOKE Str_copy, ADDR source, ADDR target
+  내부 동작: Str_length -> ECX=길이+1 -> REP MOVSB
+  대상 버퍼의 크기가 길이+1 이상인지 확인해야 한다.
+
+Str_trim : 문자열 끝에 연속된 특정 문자를 제거
+  INVOKE Str_trim, ADDR msg, '#'
+  "Hello##" -> "Hello" / "###" -> "" / "#Hello" -> "#Hello"
+  뒤에서부터 검사하고 남길 마지막 문자 바로 뒤에 NULL을 넣는다.
+
+Str_ucase : ASCII 소문자를 대문자로 변경
+  INVOKE Str_ucase, ADDR msg
+  'a'~'z'인지 검사한 후 AND 11011111b 실행 (bit 5를 0으로).
+
+20~22쪽 종합 예제 흐름:
+  "abcde////" -> Str_trim -> "abcde" -> Str_ucase -> "ABCDE"
+  -> Str_compare로 "ABCDE"와 비교 (ZF=1)
+  -> Str_length로 길이 5 확인.
+
+============================================================
+3. 2차원 배열 (24~29쪽)
+============================================================
+2차원 배열도 실제 메모리에는 원소가 연속적으로 저장된다.
+Row-major : 행 우선 저장 (한 행을 모두 저장하고 다음 행으로)
+Column-major : 열 우선 저장 (한 열을 모두 저장하고 다음 열로)
+
+행 우선 주소 = 시작 주소 + 행 번호 * RowSize + 열 번호 * TYPE
+RowSize = 열 개수 * 원소 크기(바이트)
+행과 열 번호는 0부터 시작한다.
+WORD는 열 번호에 2, DWORD는 4를 곱한다.
+
+[주소 계산 예제 - 전체 코드]
+INCLUDE Irvine32.inc
+.data
+tableW WORD 10h,20h,30h,40h,50h
+RowSizeW = ($ - tableW)
+       WORD 60h,70h,80h,90h,0A0h
+       WORD 0B0h,0C0h,0D0h,0E0h,0F0h
+.code
+main PROC
+    mov ebx,OFFSET tableW
+    add ebx,RowSizeW * 1
+    mov esi,2
+    mov ax,[ebx + esi*TYPE tableW]
+    exit
+main ENDP
+END main
+
+예상 결과: AX = 0080h (두 번째 행, 세 번째 열)
+행 크기 = 5*2 = 10바이트, 열 오프셋 = 2*2 = 4바이트
+시작 주소로부터 총 14바이트 떨어진 값이다.
+
+[주소 지정 방식]
+Base-index              : [ebx+esi]
+Base-index + scale      : [ebx+esi*4]
+Base-index-displacement : tableD[ebx+esi*4]
+Scale factor는 1, 2, 4, 8 사용 가능.
+TYPE은 한 원소 크기 / LENGTHOF는 원소 개수 / SIZEOF는 전체 바이트 수.
+$ - 배열명 : 현재 위치에서 배열의 시작 위치까지 바이트 수.
+(여러 줄로 선언된 배열은 LENGTHOF, SIZEOF가 첫 선언만 계산할 수 있음.
+  행 길이는 강의자료처럼 $ - tableW로 계산.)
+
+27쪽 calc_row_sum 흐름:
+  EBX = 배열 시작 주소, EAX = 행 번호, ECX = 행 크기(바이트)
+  MUL ECX -> ADD EBX,EAX -> 해당 행 시작 주소 계산
+  EAX=0으로 초기화 -> MOVZX로 BYTE를 읽어 합산 -> EAX에 합계 반환.
+
+============================================================
+4. 버블 정렬 (Bubble Sort, 31~33쪽)
+============================================================
+- 인접한 두 값을 비교해서 순서가 반대면 교환한다.
+- 한 번 순회하면 가장 큰 값이 맨 뒤에 위치한다.
+- N개 원소이면 최대 N-1번 순회하면 오름차순 정렬된다.
+- 바깥 LOOP의 ECX를 PUSH로 저장하고 안쪽 LOOP가 끝나면 POP으로 복원.
+- DWORD 배열이면 ESI를 4씩 이동시킨다.
+
+예: 3,1,7,5 -> 1,3,5,7 (첫 순회)
+
+[전체 예제 코드 - 강의자료 흐름을 이용한 복습용]
+INCLUDE Irvine32.inc
+BubbleSort PROTO, pArray:PTR DWORD, itemCount:DWORD
+.data
+nums SDWORD 3,-1,7,5
+.code
+main PROC
+    INVOKE BubbleSort, ADDR nums, LENGTHOF nums
+    exit
+main ENDP
+
+BubbleSort PROC USES eax ecx esi,
+    pArray:PTR DWORD, itemCount:DWORD
+    mov ecx,itemCount
+    cmp ecx,1
+    jbe done
+    dec ecx
+outerLoop:
+    push ecx
+    mov esi,pArray
+innerLoop:
+    mov eax,[esi]
+    cmp [esi+4],eax
+    jge noSwap
+    xchg eax,[esi+4]
+    mov [esi],eax
+noSwap:
+    add esi,4
+    loop innerLoop
+    pop ecx
+    loop outerLoop
+done:
+    ret
+BubbleSort ENDP
+END main
+
+예상 결과: nums = -1,3,5,7
+signed 배열이므로 JGE 사용 (6장 조건 점프 복습).
+강의자료 33쪽은 JG를 사용한다. 위 코드는 같은 값도 교환하지 않도록
+JGE로 바꾸고 원소가 0개 또는 1개인 경우를 위한 종료 조건을 추가했다.
+
+============================================================
+5. 이진 탐색 (Binary Search, 34~38쪽)
+============================================================
+정렬된 배열을 대상으로 중간값을 비교하며 탐색 범위를 반씩 줄인다.
+
+first = 0
+last = Count - 1
+mid = (first + last) / 2
+
+array[mid] == searchVal : EAX = mid 반환 (찾음)
+array[mid] < searchVal  : first = mid + 1
+array[mid] > searchVal  : last = mid - 1
+first > last          : EAX = -1 반환 (못 찾음)
+
+강의자료의 어셈블리 구현:
+- LOCAL first, last, mid로 탐색 위치 관리 (8장 지역변수)
+- SHR EAX,1 : 중간 인덱스를 구할 때 2로 나누기 (7장 시프트)
+- SHL ESI,2 : 인덱스에 4를 곱해 DWORD 오프셋 계산
+- CMP + JG/JGE/JLE : 부호 있는 정수 비교 (6장)
+
+예: [10,20,30,40,50]에서 40 찾기
+  first=0, last=4, mid=2 -> 30 < 40 -> first=3
+  first=3, last=4, mid=3 -> 40 = 40 -> EAX=3
+
+주의: 반환값은 찾은 값 자체나 주소가 아니라 인덱스이다.
+배열이 정렬되어 있지 않으면 이진 탐색 결과를 신뢰할 수 없다.
