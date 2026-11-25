@@ -1,0 +1,189 @@
+10.7.2 Algorithm Workbench
+
+1. SampleStruct 구조체 선언
+[정답]
+SampleStruct STRUCT
+    field1 WORD ?
+    field2 DWORD 20 DUP(?)
+SampleStruct ENDS
+
+2. SYSTEMTIME 구조체의 wHour 읽기
+[정답]
+mov ax,sysTime.wHour
+[풀이] sysTime을 SYSTEMTIME 자료형으로 선언한 경우. wHour는 WORD이다.
+
+3. Triangle 변수에 (0,0), (5,0), (7,6) 저장
+[정답]
+Triangle STRUCT
+    Vertex1 COORD <>
+    Vertex2 COORD <>
+    Vertex3 COORD <>
+Triangle ENDS
+
+tri Triangle <<0,0>,<5,0>,<7,6>>
+
+4. Triangle 배열의 Vertex1을 0~10 난수 좌표로 초기화
+[정답]
+.data
+triangles Triangle 5 DUP(<>)
+.code
+    mov edi,OFFSET triangles
+    mov ecx,LENGTHOF triangles
+L1:
+    push ecx
+    mov eax,11
+    call RandomRange
+    mov (Triangle PTR [edi]).Vertex1.X,ax
+    mov eax,11
+    call RandomRange
+    mov (Triangle PTR [edi]).Vertex1.Y,ax
+    pop ecx
+    add edi,TYPE Triangle
+    loop L1
+[풀이] RandomRange에 11을 주면 0~10의 값이 나온다.
+
+5. mPrintChar : 문자 한 개를 지정 횟수만큼 출력
+[정답]
+mPrintChar MACRO ch:REQ, n:REQ
+    LOCAL Again, Done
+    push eax
+    push ecx
+    mov ecx,n
+    jecxz Done
+Again:
+    mov al,ch
+    call WriteChar
+    loop Again
+Done:
+    pop ecx
+    pop eax
+ENDM
+
+; 호출
+mPrintChar 'X',20
+
+6. mGenRandom : 0~n-1 난수 생성
+[정답]
+mGenRandom MACRO n:REQ
+    mov eax,n
+    call RandomRange
+ENDM
+[풀이] 결과는 EAX로 반환한다. n은 양수여야 한다.
+
+7. mPromptInteger : 안내 문구 출력 후 정수 입력
+[정답]
+mPromptInteger MACRO prompt:REQ, dest:REQ
+    LOCAL promptText
+    .data
+promptText BYTE prompt,0
+    .code
+    push edx
+    mov edx,OFFSET promptText
+    call WriteString
+    call ReadInt
+    mov dest,eax
+    pop edx
+ENDM
+
+; 사용 예
+minVal DWORD ?
+mPromptInteger "Enter the minimum value", minVal
+
+8. mWriteAt : 커서 이동 후 문자열 출력
+[정답]
+; Macros.inc 포함
+mWriteAt MACRO x:REQ, y:REQ, msg:REQ
+    mGotoxy x,y
+    mWrite msg
+ENDM
+
+mWriteAt 10,5,"Hello"
+
+9. mWriteStr namePrompt의 확장 코드
+[정답]
+push edx
+mov edx,OFFSET namePrompt
+call WriteString
+pop edx
+
+10. mReadStr customerName의 확장 코드
+[정답]
+push ecx
+push edx
+mov edx,OFFSET customerName
+mov ecx,(SIZEOF customerName) - 1
+call ReadString
+pop edx
+pop ecx
+[풀이] customerName이 BYTE 버퍼일 때. 라이브러리 버전에 따라 생성 문장의 세부 형태는 다를 수 있다.
+
+11. mDumpMemx : 변수 이름만 전달하여 메모리 출력
+[정답]
+; Macros.inc 포함
+mDumpMemx MACRO varName:REQ
+    mDumpMem OFFSET varName, LENGTHOF varName, TYPE varName
+ENDM
+
+.data
+nums DWORD 10,20,30
+.code
+mDumpMemx nums
+
+12. 기본 인자값을 갖는 매크로
+[정답]
+mHello MACRO ch:=<'A'>
+    mov al,ch
+    call WriteChar
+ENDM
+
+mHello       ; A 출력
+mHello 'B'   ; B 출력
+
+13. IF / ELSE / ENDIF 사용
+[정답]
+DEBUG_MODE = 1
+IF DEBUG_MODE EQ 1
+    ECHO Debug mode
+ELSE
+    ECHO Release mode
+ENDIF
+[풀이] 실행 중 판단이 아니라 어셈블 중에 한쪽만 선택된다.
+
+14. Z가 음수면 어셈블 중 오류 문구 표시
+[정답]
+IF Z LT 0
+    ECHO Invalid Z value
+ENDIF
+[풀이] Z는 어셈블할 때 값을 알 수 있는 상수 매개변수여야 한다.
+
+15. 문자열 안에 매크로 매개변수 삽입
+[정답]
+mName MACRO regName:REQ
+    LOCAL labelText
+    .data
+labelText BYTE "&regName",0
+    .code
+    push edx
+    mov edx,OFFSET labelText
+    call WriteString
+    pop edx
+ENDM
+
+mName EAX        ; EAX 출력
+
+16. mLocate 매크로 확장 결과
+[정답]
+(1) mLocate -2,20
+; xval이 음수이므로 EXITM 실행. 출력 코드 없음.
+
+(2) mLocate 10,20
+mov bx,0
+mov ah,2
+mov dh,20
+mov dl,10
+int 10h
+
+(3) mLocate col,row
+; IF xval LT 0 / IF yval LT 0은 어셈블 시 상수식 검사다.
+; col과 row는 BYTE 변수이므로 상수 인자가 아니라서 조건 평가에 사용할 수 없다.
+; 변수의 값을 검사하려면 실행 중 CMP/Jcc를 사용해야 한다.
